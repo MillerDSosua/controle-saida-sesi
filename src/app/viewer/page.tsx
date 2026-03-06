@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,8 +10,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User, Users, Bus, AlertCircle } from "lucide-react";
+import { Clock, User, Users, Bus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function ViewerPage() {
   const { user, role, loading } = useAuth();
@@ -29,6 +30,8 @@ export default function ViewerPage() {
   }, [user, role, loading, router]);
 
   useEffect(() => {
+    if (!user || role !== "viewer") return;
+
     // Monitorar todas as chamadas ativas de hoje
     const qCalls = query(
       collection(db, "calls"),
@@ -37,18 +40,38 @@ export default function ViewerPage() {
       orderBy("dataHoraChamado", "desc")
     );
     
-    const unsubCalls = onSnapshot(qCalls, (s) => {
-      setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubCalls = onSnapshot(
+      qCalls, 
+      (s) => {
+        setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'calls',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
     // Monitorar turmas para o filtro
     const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
-    const unsubC = onSnapshot(qC, (s) => {
-      setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubC = onSnapshot(
+      qC, 
+      (s) => {
+        setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'classes',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
     return () => { unsubCalls(); unsubC(); };
-  }, [diaRef]);
+  }, [diaRef, user, role]);
 
   if (loading || !user || role !== "viewer") {
     return (
@@ -58,15 +81,11 @@ export default function ViewerPage() {
     );
   }
 
-  // Lógica de filtragem inteligente
   const filteredCalls = calls.filter(call => {
     if (selectedClass === "all") return true;
-    
     if (call.tipo === "escolar") {
-      // Mostrar escolar se a turma selecionada estiver entre as relacionadas
       return call.turmasRelacionadas?.includes(selectedClass);
     } else {
-      // Chamada normal de aluno
       return call.turmaId === selectedClass;
     }
   });

@@ -10,27 +10,6 @@ service cloud.firestore {
      * ('operator', 'viewer') are stored in the '/users' collection. Authorization is 
      * strictly enforced based on these roles to ensure that only authorized personnel 
      * can manage students, classes, and calls.
-     * 
-     * DATA STRUCTURE:
-     * The system uses four primary top-level collections:
-     * - /users: User profiles and roles (Self-read/write, restricted listing).
-     * - /classes: Educational groups (Operator-only access).
-     * - /students: Student registry (Operator-only access).
-     * - /calls: Daily call logs (Operator R/W, Viewer R-only).
-     * 
-     * KEY SECURITY DECISIONS:
-     * 1. Authorization Independence: Critical fields like 'turmaId' and 'chamadoPorUid' 
-     *    are denormalized into Student and Call documents. This allows rules to 
-     *    validate ownership and relational integrity without costly 'get()' lookups 
-     *    to parent documents.
-     * 2. Role-Based Access: All administrative actions require the 'operator' role. 
-     *    The 'viewer' role is restricted to monitoring the 'calls' collection for 
-     *    real-time updates on the visitor screen.
-     * 3. Relational Integrity: On creation, we enforce that document IDs match the 
-     *    provided data fields and that the 'chamadoPorUid' matches the authenticated user.
-     * 4. Prototyping Flexibility: We enforce 'who' can write and 'what' critical 
-     *    relational fields must look like, but we do not enforce strict schema shapes 
-     *    for descriptive content (e.g., student names or descriptions).
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -60,41 +39,28 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the User collection. Users can manage their own profiles.
-     * @path /users/{userId}
-     * @allow (get, create, update) if the authenticated user matches the userId.
-     * @deny (list) for all users to prevent user enumeration.
-     * @principle Verified Identity and Self-Creation pattern.
+     * @description Rules for the User collection.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if false; // Users cannot delete their own accounts through the client
+      allow delete: if false;
     }
 
     /**
-     * @description Rules for Classes. Managed exclusively by Operators.
-     * @path /classes/{classId}
-     * @allow (read, write) if the user has the 'operator' role.
-     * @deny (all) for non-operators or unauthenticated users.
-     * @principle Role-Based Access Control (RBAC).
+     * @description Rules for Classes. Managed by Operators, readable by both.
      */
     match /classes/{classId} {
-      allow get, list: if isOperator();
+      allow get, list: if isOperator() || isViewer();
       allow create: if isOperator() && request.resource.data.id == classId;
       allow update: if isOperator() && resource != null && request.resource.data.id == resource.data.id;
       allow delete: if isOperator() && resource != null;
     }
 
     /**
-     * @description Rules for Students. Managed exclusively by Operators. 
-     * Relies on denormalized 'turmaId' for class associations.
-     * @path /students/{studentId}
-     * @allow (read, write) if the user has the 'operator' role.
-     * @deny (all) for 'viewer' role or unauthenticated users.
-     * @principle Relational integrity via ID consistency and Role-Based Access.
+     * @description Rules for Students. Managed exclusively by Operators.
      */
     match /students/{studentId} {
       allow get, list: if isOperator();
@@ -104,13 +70,17 @@ service cloud.firestore {
     }
 
     /**
+     * @description Rules for Escolares. Managed by Operators, readable by both.
+     */
+    match /escolares/{escolarId} {
+      allow get, list: if isOperator() || isViewer();
+      allow create: if isOperator();
+      allow update: if isOperator() && resource != null;
+      allow delete: if isOperator() && resource != null;
+    }
+
+    /**
      * @description Rules for Call records. Supports real-time monitoring for viewers.
-     * Operators manage the lifecycle; Viewers can only monitor.
-     * @path /calls/{callId}
-     * @allow (read) for both Operators and Viewers.
-     * @allow (write) only for Operators.
-     * @deny (delete) even for operators if preferred, but enabled here for cleanup.
-     * @principle Structural Segregation (Role-based read/write differentiation).
      */
     match /calls/{callId} {
       allow get, list: if isOperator() || isViewer();

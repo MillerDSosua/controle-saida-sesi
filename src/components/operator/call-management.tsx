@@ -13,6 +13,8 @@ import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle, Loader
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function CallManagement() {
   const { user } = useAuth();
@@ -31,36 +33,64 @@ export function CallManagement() {
   }, []);
 
   useEffect(() => {
-    if (!diaRef) return;
+    if (!diaRef || !user) return;
 
-    const unsubS = onSnapshot(query(collection(db, "students"), orderBy("nomeExibicao", "asc")), (s) => {
-      setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubS = onSnapshot(
+      query(collection(db, "students"), orderBy("nomeExibicao", "asc")), 
+      (s) => {
+        setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'students',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
-    const unsubC = onSnapshot(query(collection(db, "classes"), orderBy("nome", "asc")), (s) => {
-      setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubC = onSnapshot(
+      query(collection(db, "classes"), orderBy("nome", "asc")), 
+      (s) => {
+        setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'classes',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
     const qCalls = query(
       collection(db, "calls"), 
       where("diaRef", "==", diaRef)
     );
 
-    const unsubCalls = onSnapshot(qCalls, (s) => {
-      const callsMap: Record<string, any> = {};
-      s.docs.forEach(d => {
-        const data = d.data();
-        if (!callsMap[data.studentId] || data.updatedAt?.toMillis() > (callsMap[data.studentId].updatedAt?.toMillis() || 0)) {
-          callsMap[data.studentId] = { id: d.id, ...data };
-        }
-      });
-      setCalls(callsMap);
-    }, (error) => {
-      console.error("Erro no listener de chamadas:", error);
-    });
+    const unsubCalls = onSnapshot(
+      qCalls, 
+      (s) => {
+        const callsMap: Record<string, any> = {};
+        s.docs.forEach(d => {
+          const data = d.data();
+          if (!callsMap[data.studentId] || data.updatedAt?.toMillis() > (callsMap[data.studentId].updatedAt?.toMillis() || 0)) {
+            callsMap[data.studentId] = { id: d.id, ...data };
+          }
+        });
+        setCalls(callsMap);
+      }, 
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'calls',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
     return () => { unsubS(); unsubC(); unsubCalls(); };
-  }, [diaRef]);
+  }, [diaRef, user]);
 
   const toggleProcessing = (id: string, isProcessing: boolean) => {
     setProcessingIds(prev => {
@@ -79,22 +109,36 @@ export function CallManagement() {
       const existingCall = calls[student.id];
 
       if (existingCall && existingCall.status === "Chamado") {
-        await updateDoc(doc(db, "calls", existingCall.id), {
+        updateDoc(doc(db, "calls", existingCall.id), {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
+        }).catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: `calls/${existingCall.id}`,
+            operation: 'update',
+            requestResourceData: { status: "Cancelado", updatedAt: new Date() },
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
         toast({ title: "Chamada Cancelada", description: `${student.nomeExibicao} foi removido do quadro.` });
       } else {
         if (existingCall) {
-          await updateDoc(doc(db, "calls", existingCall.id), {
+          updateDoc(doc(db, "calls", existingCall.id), {
             status: "Chamado",
             dataHoraChamado: serverTimestamp(),
             updatedAt: serverTimestamp(),
             chamadoPorUid: user?.uid,
             chamadoPorEmail: user?.email,
+          }).catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+              path: `calls/${existingCall.id}`,
+              operation: 'update',
+              requestResourceData: { status: "Chamado" },
+            });
+            errorEmitter.emit('permission-error', permissionError);
           });
         } else {
-          await addDoc(collection(db, "calls"), {
+          addDoc(collection(db, "calls"), {
             studentId: student.id,
             nomeExibicao: student.nomeExibicao,
             turmaId: student.turmaId,
@@ -106,12 +150,17 @@ export function CallManagement() {
             chamadoPorEmail: user?.email,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+          }).catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+              path: 'calls',
+              operation: 'create',
+            });
+            errorEmitter.emit('permission-error', permissionError);
           });
         }
         toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi enviado ao quadro.` });
       }
     } catch (error) {
-      console.error("Erro na operação de chamada:", error);
       toast({ variant: "destructive", title: "Erro", description: "Falha ao processar solicitação." });
     } finally {
       toggleProcessing(student.id, false);
