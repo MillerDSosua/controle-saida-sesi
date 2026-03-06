@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Search, History as HistoryIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function HistoryManagement() {
   const [history, setHistory] = useState<any[]>([]);
