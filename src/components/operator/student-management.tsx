@@ -139,15 +139,21 @@ export function StudentManagement() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Escolar (Opcional)</Label>
                   <Select
-                    value={formData.escolarId}
-                    onValueChange={(val) => setFormData({ ...formData, escolarId: val })}
+                    value={formData.escolarId || "none"}
+                    onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}
                   >
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Nenhum escolar vinculado" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
-                      <SelectItem value="">Nenhum escolar</SelectItem>
-                      {escolares.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                      <SelectItem value="none">Nenhum escolar</SelectItem>
+                      {escolares
+                      .filter(e => e.id && e.nome) 
+                      .map(e => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

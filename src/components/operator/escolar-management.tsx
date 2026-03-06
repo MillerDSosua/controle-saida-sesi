@@ -1,21 +1,22 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, CheckCircle2, Loader2, Users } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, CheckCircle2, Loader2, Users, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function EscolarManagement() {
   const { user } = useAuth();
@@ -31,26 +32,65 @@ export function EscolarManagement() {
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   useEffect(() => {
-    const unsubE = onSnapshot(query(collection(db, "escolares"), orderBy("nome", "asc")), (s) => {
-      setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    if (!user) return;
 
-    const unsubS = onSnapshot(collection(db, "students"), (s) => {
-      setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubE = onSnapshot(
+      query(collection(db, "escolares"), orderBy("nome", "asc")), 
+      (s) => {
+        setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'escolares',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
-    const qCalls = query(collection(db, "calls"), where("diaRef", "==", diaRef), where("tipo", "==", "escolar"));
-    const unsubCalls = onSnapshot(qCalls, (s) => {
-      const callsMap: Record<string, any> = {};
-      s.docs.forEach(d => {
-        const data = d.data();
-        callsMap[data.escolarId] = { id: d.id, ...data };
-      });
-      setCalls(callsMap);
-    });
+    const unsubS = onSnapshot(
+      collection(db, "students"), 
+      (s) => {
+        setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'students',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
+
+    const qCalls = query(
+      collection(db, "calls"), 
+      where("diaRef", "==", diaRef), 
+      where("tipo", "==", "escolar")
+    );
+    
+    const unsubCalls = onSnapshot(
+      qCalls, 
+      (s) => {
+        const callsMap: Record<string, any> = {};
+        s.docs.forEach(d => {
+          const data = d.data();
+          if (!callsMap[data.escolarId] || data.updatedAt?.toMillis() > (callsMap[data.escolarId].updatedAt?.toMillis() || 0)) {
+            callsMap[data.escolarId] = { id: d.id, ...data };
+          }
+        });
+        setCalls(callsMap);
+      },
+      async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'calls',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
 
     return () => { unsubE(); unsubS(); unsubCalls(); };
-  }, [diaRef]);
+  }, [diaRef, user]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +120,12 @@ export function EscolarManagement() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Deseja excluir este escolar?")) {
-      await deleteDoc(doc(db, "escolares", id));
-      toast({ title: "Sucesso", description: "Escolar removido." });
+      try {
+        await deleteDoc(doc(db, "escolares", id));
+        toast({ title: "Sucesso", description: "Escolar removido." });
+      } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Erro ao excluir." });
+      }
     }
   };
 
@@ -104,14 +148,21 @@ export function EscolarManagement() {
       const relatedClasses = Array.from(new Set(relatedStudents.map(s => s.turmaId)));
 
       if (existingCall && existingCall.status === "Chamado") {
-        await updateDoc(doc(db, "calls", existingCall.id), {
+        updateDoc(doc(db, "calls", existingCall.id), {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
+        }).catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: `calls/${existingCall.id}`,
+            operation: 'update',
+            requestResourceData: { status: "Cancelado" },
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
         toast({ title: "Chamada Cancelada", description: `Escolar ${escolar.nome} removido do quadro.` });
       } else {
         if (existingCall) {
-          await updateDoc(doc(db, "calls", existingCall.id), {
+          updateDoc(doc(db, "calls", existingCall.id), {
             status: "Chamado",
             dataHoraChamado: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -119,9 +170,16 @@ export function EscolarManagement() {
             chamadoPorEmail: user?.email,
             turmasRelacionadas: relatedClasses,
             alunosRelacionados: relatedStudents.map(s => s.nomeExibicao),
+          }).catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+              path: `calls/${existingCall.id}`,
+              operation: 'update',
+              requestResourceData: { status: "Chamado" },
+            });
+            errorEmitter.emit('permission-error', permissionError);
           });
         } else {
-          await addDoc(collection(db, "calls"), {
+          addDoc(collection(db, "calls"), {
             tipo: "escolar",
             escolarId: escolar.id,
             escolarNome: escolar.nome,
@@ -134,13 +192,18 @@ export function EscolarManagement() {
             alunosRelacionados: relatedStudents.map(s => s.nomeExibicao),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+          }).catch(async (error) => {
+            const permissionError = new FirestorePermissionError({
+              path: 'calls',
+              operation: 'create',
+            });
+            errorEmitter.emit('permission-error', permissionError);
           });
         }
         toast({ title: "Escolar Chamado", description: `Transporte ${escolar.nome} enviado ao quadro.` });
       }
     } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao processar chamada de escolar." });
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao processar chamada." });
     } finally {
       toggleProcessing(escolar.id, false);
     }
@@ -149,13 +212,13 @@ export function EscolarManagement() {
   const filteredEscolares = escolares.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-4 rounded-2xl shadow-sm border">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+    <div className="space-y-8 py-4">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
             placeholder="Buscar escolares..."
-            className="pl-10 h-12 rounded-xl bg-secondary/30 border-none"
+            className="pl-12 h-12 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -165,7 +228,7 @@ export function EscolarManagement() {
           if (!open) { setEditingEscolar(null); setName(""); }
         }}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto gap-2 h-12 rounded-xl gradient-primary">
+            <Button className="w-full md:w-auto gap-2 h-12 rounded-xl gradient-primary shadow-lg shadow-primary/20">
               <Plus size={18} /> Novo Escolar
             </Button>
           </DialogTrigger>
@@ -177,7 +240,7 @@ export function EscolarManagement() {
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <div className="space-y-2">
-                  <Label>Nome do Escolar / Motorista</Label>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome do Escolar / Motorista</Label>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -188,91 +251,108 @@ export function EscolarManagement() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" className="h-12 rounded-xl gradient-primary">Salvar</Button>
+                <Button type="submit" className="w-full h-12 rounded-xl gradient-primary font-bold">Salvar Cadastro</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEscolares.map((e) => {
-          const isCalled = calls[e.id]?.status === "Chamado";
-          const isProcessing = processingIds.has(e.id);
-          const studentCount = students.filter(s => s.escolarId === e.id).length;
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredEscolares.length > 0 ? (
+          filteredEscolares.map((e) => {
+            const currentCall = calls[e.id];
+            const isCalled = currentCall && currentCall.status === "Chamado";
+            const isProcessing = processingIds.has(e.id);
+            const studentCount = students.filter(s => s.escolarId === e.id).length;
 
-          return (
-            <Card key={e.id} className={cn(
-              "premium-card border-2 transition-all duration-300",
-              isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent"
-            )}>
-              <CardContent className="p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className={cn(
-                    "h-14 w-14 rounded-2xl flex items-center justify-center shadow-inner",
-                    isCalled ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-400"
-                  )}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <Bus size={28} />}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => {
-                      setEditingEscolar(e);
-                      setName(e.nome);
-                      setIsDialogOpen(true);
-                    }}>
-                      <Edit2 size={16} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive" onClick={() => handleDelete(e.id)}>
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
+            return (
+              <Card key={e.id} className={cn(
+                "premium-card group overflow-hidden border-2 transition-all duration-300 flex flex-col h-[320px] relative",
+                isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent"
+              )}>
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur shadow-sm hover:bg-white" onClick={(evt) => {
+                    evt.stopPropagation();
+                    setEditingEscolar(e);
+                    setName(e.nome);
+                    setIsDialogOpen(true);
+                  }}>
+                    <Edit2 size={14} className="text-primary" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur shadow-sm hover:bg-red-50" onClick={(evt) => {
+                    evt.stopPropagation();
+                    handleDelete(e.id);
+                  }}>
+                    <Trash2 size={14} className="text-destructive" />
+                  </Button>
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-primary truncate">{e.nome}</h3>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users size={14} />
-                    <span className="text-xs font-bold uppercase tracking-wider">{studentCount} Alunos Vinculados</span>
+                <CardContent className="p-6 flex flex-col h-full space-y-4">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className={cn(
+                      "h-20 w-20 rounded-full flex items-center justify-center shadow-inner transition-all duration-500",
+                      isCalled ? "bg-green-100 text-green-600 scale-105" : "bg-slate-100 text-slate-400"
+                    )}>
+                      {isProcessing ? <Loader2 className="animate-spin" size={32} /> : <Bus size={40} />}
+                    </div>
+                    
+                    <div className="space-y-1 w-full px-2">
+                      <h3 className="text-lg font-bold text-primary leading-tight line-clamp-2 min-h-[3rem] flex items-center justify-center">
+                        {e.nome}
+                      </h3>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  {isCalled ? (
-                    <Badge className="bg-green-500 text-white border-transparent text-[10px] font-black uppercase tracking-wider px-3 py-1 animate-pulse">
-                      <CheckCircle2 size={10} className="mr-1" /> Chamado Ativo
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-auto">
+                    <Badge variant="secondary" className="bg-orange-50 text-orange-600 border-orange-100 text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                      ESCOLAR
                     </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-slate-400 border-slate-200 text-[10px] font-black uppercase tracking-wider px-3 py-1">
-                      Em Espera
+                    <Badge variant="outline" className="text-muted-foreground border-slate-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                      <Users size={10} className="mr-1" /> {studentCount} ALUNOS
                     </Badge>
-                  )}
-                </div>
+                    {isCalled ? (
+                      <Badge className="bg-green-500 text-white border-transparent text-[10px] font-black uppercase tracking-wider px-2.5 py-1 animate-pulse">
+                        <CheckCircle2 size={10} className="mr-1" /> Chamado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-slate-400 border-slate-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                        Aguardando
+                      </Badge>
+                    )}
+                  </div>
 
-                <Button
-                  variant={isCalled ? "destructive" : "default"}
-                  className={cn(
-                    "w-full h-14 rounded-xl font-bold gap-2 text-sm shadow-lg",
-                    !isCalled && "gradient-primary shadow-primary/20",
-                    isCalled && "bg-red-500 hover:bg-red-600"
-                  )}
-                  disabled={isProcessing}
-                  onClick={() => handleToggleCall(e)}
-                >
-                  {isCalled ? (
-                    <><XCircle size={18} /> Cancelar Chamada</>
-                  ) : (
-                    <><PhoneOutgoing size={18} /> Chamar Escolar</>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {filteredEscolares.length === 0 && (
-          <div className="col-span-full py-24 text-center opacity-40">
-            <Bus size={48} className="mx-auto mb-4" />
-            <h3 className="text-xl font-bold">Nenhum escolar cadastrado</h3>
+                  <div className="pt-2">
+                    <Button
+                      variant={isCalled ? "destructive" : "default"}
+                      className={cn(
+                        "w-full gap-2 h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95 text-xs",
+                        !isCalled && "gradient-primary shadow-primary/20",
+                        isCalled && "bg-red-500 hover:bg-red-600 text-white shadow-red-200"
+                      )}
+                      disabled={isProcessing}
+                      onClick={() => handleToggleCall(e)}
+                    >
+                      {isCalled ? (
+                        <><XCircle size={16} /> Cancelar Chamada</>
+                      ) : (
+                        <><PhoneOutgoing size={16} /> Chamada de Saída</>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <div className="col-span-full py-32 flex flex-col items-center justify-center text-center space-y-6 opacity-40">
+            <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center">
+              <AlertCircle size={48} className="text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">Nenhum escolar encontrado</h3>
+              <p className="max-w-xs mx-auto">Tente ajustar sua busca ou cadastre novos escolares no sistema.</p>
+            </div>
           </div>
         )}
       </div>
