@@ -22,6 +22,7 @@ export default function ViewerPage() {
   const [diaRef, setDiaRef] = useState<string>("");
 
   useEffect(() => {
+    // Estabiliza a data de hoje para o filtro
     setDiaRef(format(new Date(), "yyyy-MM-dd"));
   }, []);
 
@@ -48,10 +49,12 @@ export default function ViewerPage() {
       console.error("Erro no listener de chamadas do visitante:", error);
     });
 
-    // Monitorar turmas para o filtro
+    // Monitorar turmas reais para o filtro
     const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
     const unsubC = onSnapshot(qC, (s) => {
       setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.error("Erro no listener de turmas do visitante:", error);
     });
 
     return () => { unsubCalls(); unsubC(); };
@@ -65,7 +68,9 @@ export default function ViewerPage() {
     );
   }
 
-  const filteredCalls = selectedClass === "all" ? calls : calls.filter(c => c.turmaId === selectedClass);
+  const filteredCalls = selectedClass === "all" 
+    ? calls 
+    : calls.filter(c => c.turmaId === selectedClass);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -87,7 +92,7 @@ export default function ViewerPage() {
                 <Users size={20} />
               </div>
               <div>
-                <span className="block text-2xl font-bold text-primary">{calls.length}</span>
+                <span className="block text-2xl font-bold text-primary leading-none">{calls.length}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados Ativos</span>
               </div>
             </div>
@@ -99,7 +104,9 @@ export default function ViewerPage() {
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl">
                   <SelectItem value="all">Todas as Turmas</SelectItem>
-                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  {classes.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -119,7 +126,9 @@ export default function ViewerPage() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-primary leading-none tracking-tight">{call.nomeExibicao}</h3>
+                      <h3 className="text-2xl font-black text-primary leading-tight tracking-tight line-clamp-2 min-h-[4rem] flex items-center justify-center">
+                        {call.nomeExibicao}
+                      </h3>
                       <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em]">{call.turmaNome}</p>
                     </div>
                     <div className="w-full h-px bg-border"></div>

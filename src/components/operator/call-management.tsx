@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -91,7 +91,6 @@ export function CallManagement() {
         toast({ title: "Chamada Cancelada", description: `${student.nomeExibicao} foi removido do quadro.` });
       } else {
         // Se já existe um documento mas está cancelado, reutiliza ou cria novo
-        // Para simplificar e evitar bugs de histórico, se existir um cancelado de HOJE, atualizamos ele
         if (existingCall) {
           await updateDoc(doc(db, "calls", existingCall.id), {
             status: "Chamado",
@@ -168,20 +167,24 @@ export function CallManagement() {
 
             return (
               <Card key={s.id} className={cn(
-                "premium-card group overflow-hidden border-2 transition-all duration-300",
+                "premium-card group overflow-hidden border-2 transition-all duration-300 flex flex-col h-full",
                 isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent"
               )}>
-                <CardContent className="p-6 space-y-5">
-                  <div className="flex items-center gap-4">
+                <CardContent className="p-6 flex flex-col flex-1 space-y-5">
+                  <div className="flex items-start gap-4 h-20">
                     <div className={cn(
-                      "h-16 w-16 rounded-full flex items-center justify-center shadow-inner transition-colors duration-500",
+                      "h-16 w-16 min-w-[4rem] rounded-full flex items-center justify-center shadow-inner transition-colors duration-500",
                       isCalled ? "bg-green-100 text-green-600" : "bg-secondary text-primary/40"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={32} />}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-primary leading-tight truncate">{s.nomeExibicao}</h3>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{s.turmaNome}</p>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center h-full">
+                      <h3 className="text-lg font-bold text-primary leading-tight line-clamp-2">
+                        {s.nomeExibicao}
+                      </h3>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mt-1">
+                        {s.turmaNome}
+                      </p>
                     </div>
                   </div>
 
@@ -197,7 +200,7 @@ export function CallManagement() {
                     )}
                   </div>
 
-                  <div className="pt-2">
+                  <div className="mt-auto pt-2">
                     <Button
                       variant={isCalled ? "destructive" : "default"}
                       className={cn(
