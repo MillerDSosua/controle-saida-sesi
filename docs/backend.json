@@ -1,0 +1,269 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile with access roles for the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity (Firebase Auth UID)."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role, determining their access level.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role"
+      ]
+    },
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Student",
+      "type": "object",
+      "description": "Represents a student registered in the system, associated with a specific class.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Student entity."
+        },
+        "nomeExibicao": {
+          "type": "string",
+          "description": "The student's display name."
+        },
+        "turmaId": {
+          "type": "string",
+          "description": "Reference to Class. (Relationship: Class 1:N Student)"
+        },
+        "turmaNome": {
+          "type": "string",
+          "description": "Denormalized name of the class the student belongs to."
+        },
+        "ativo": {
+          "type": "boolean",
+          "description": "Indicates if the student record is currently active."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the student record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the student record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "nomeExibicao",
+        "turmaId",
+        "turmaNome",
+        "ativo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Class": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Class",
+      "type": "object",
+      "description": "Represents a class (turma) within the educational institution.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Class entity."
+        },
+        "nome": {
+          "type": "string",
+          "description": "The name of the class."
+        },
+        "ativa": {
+          "type": "boolean",
+          "description": "Indicates if the class is currently active."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the class record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the class record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "nome",
+        "ativa",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Call": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Call",
+      "type": "object",
+      "description": "Records an instance of a student being 'called out' or having their call status updated, including time and who made the call.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Call entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N Call)"
+        },
+        "nomeExibicao": {
+          "type": "string",
+          "description": "Denormalized display name of the student who was called."
+        },
+        "turmaId": {
+          "type": "string",
+          "description": "Reference to Class (via Student). (Relationship: Class 1:N Call indirectly)"
+        },
+        "turmaNome": {
+          "type": "string",
+          "description": "Denormalized name of the class the student belongs to."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the call (e.g., 'Chamado', 'Cancelado', 'Saiu').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dataHoraChamado": {
+          "type": "string",
+          "description": "Timestamp when the call was initiated or updated.",
+          "format": "date-time"
+        },
+        "diaRef": {
+          "type": "string",
+          "description": "A date string in YYYY-MM-DD format for daily filtering of calls.",
+          "format": "date"
+        },
+        "chamadoPorUid": {
+          "type": "string",
+          "description": "Reference to User (operator) who initiated or updated the call. (Relationship: User 1:N Call)"
+        },
+        "chamadoPorEmail": {
+          "type": "string",
+          "description": "Denormalized email of the operator who initiated or updated the call."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the call record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the call record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "nomeExibicao",
+        "turmaId",
+        "turmaNome",
+        "status",
+        "dataHoraChamado",
+        "diaRef",
+        "chamadoPorUid",
+        "chamadoPorEmail",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles and their assigned roles ('operator' or 'viewer'). This collection is central for authorization, enabling DBAC by providing a lookup for `request.auth.uid`'s role. Access is restricted to self-read.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/classes/{classId}",
+        "definition": {
+          "entityName": "Class",
+          "schema": {
+            "$ref": "#/backend/entities/Class"
+          },
+          "description": "Contains records for all educational classes. Access (CRUD) is granted only to authenticated users with the 'operator' role. This collection has a homogeneous security posture.",
+          "params": [
+            {
+              "name": "classId",
+              "description": "The unique identifier for a class."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/students/{studentId}",
+        "definition": {
+          "entityName": "Student",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Stores student records. Includes denormalized 'turmaId' and 'turmaNome' fields for Authorization Independence, enabling student operations without requiring 'get()' calls to the parent Class document in rules. Access (CRUD) is granted only to authenticated users with the 'operator' role. This collection has a homogeneous security posture.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "The unique identifier for a student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/calls/{callId}",
+        "definition": {
+          "entityName": "Call",
+          "schema": {
+            "$ref": "#/backend/entities/Call"
+          },
+          "description": "Records all student calls. This collection implements Authorization Independence by denormalizing all necessary contextual information: 'studentId', 'nomeExibicao', 'turmaId', 'turmaNome', 'chamadoPorUid', 'chamadoPorEmail'. This allows robust list operations (QAPs) filtered by 'diaRef' and 'turmaId' without requiring 'get()' operations on parent Student or Class documents in security rules for each call document. Access is Read/Write for 'operator' roles and Read-only for 'viewer' roles. The 'diaRef' field facilitates efficient daily call filtering.",
+          "params": [
+            {
+              "name": "callId",
+              "description": "The unique identifier for a call instance."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable by strictly adhering to the mandated core design principles and strategies. The primary goal is to achieve Authorization Independence and support robust Query-Allowed Path (QAP) security rules, while maintaining DBAC (Database-Based Access Control) without custom claims. The proposed structure comprises four top-level collections: 'users', 'classes', 'students', and 'calls'.\n\n**Authorization Independence (CRITICAL):**\n1.  **User Roles (`users/{userId}`):** User roles ('operator', 'viewer') are stored directly within the user's document (`/users/{request.auth.uid}`). While a `get()` operation in security rules is typically avoided for hierarchical dependencies, fetching the *current user's own role* is a necessary and accepted pattern when roles are stored in the database without custom claims. This is not considered a hierarchical dependency related to parent data, but rather a direct lookup of the authenticated user's metadata, enabling clear role-based access checks.\n2.  **Student Documents (`students/{studentId}`):** Student documents include denormalized fields `turmaId` and `turmaNome`. This ensures that any authorization or application logic related to a student's class can be performed by referencing these embedded fields without requiring a `get()` call to the `/classes/{classId}` document in security rules or application logic for basic display and filtering.\n3.  **Call Documents (`calls/{callId}`):** This collection is the most critical for Authorization Independence. Each `call` document extensively denormalizes all relevant contextual information: `studentId`, `nomeExibicao`, `turmaId`, `turmaNome`, `chamadoPorUid`, and `chamadoPorEmail`. This complete denormalization means that security rules for `calls` can evaluate permissions based *solely* on the data within the `call` document itself (and the current user's role, as per point 1), completely eliminating the need for `get()` calls to `students`, `classes`, or other `users` documents when authorizing access to a specific call record. This is crucial for performance and debuggability.\n\n**Query-Allowed Paths (QAPs - Rules are not Filters):**\n1.  **Structural Segregation:** All documents within a given collection share a homogeneous security posture, making security rules straightforward. For example, all `classes` documents are R/W for operators. All `calls` documents have a consistent R/W for operators and R-only for viewers.\n2.  **Denormalized Fields for Filtering:** The denormalization strategy directly supports QAPs. For `students`, operators can list all students and then filter by `turmaId` on the client side. For `calls`, both operators and viewers can efficiently query for today's calls (`diaRef`) or calls for a specific class (`turmaId`). Because `turmaId`, `diaRef`, `studentId`, and other relevant fields are present directly in each `call` document, client-side queries (e.g., `where('diaRef', '==', 'YYYY-MM-DD')` or `where('turmaId', '==', '{turmaId}')`) can be executed efficiently. Security rules then simply grant read access based on the user's role to the entire `calls` collection, without needing to perform costly server-side filtering or `get()` operations per document to establish authorization. This ensures rules validate the request *before* the query runs, and the queries themselves are fast and indexed.\n\n**Other Principles:**\n*   **DBAC (No Custom Claims):** User roles are managed directly in the `users` collection in Firestore, relying on `request.auth.uid` for lookup.\n*   **Clarity of Intent:** Path names are semantic (`users`, `classes`, `students`, `calls`). Wildcards are descriptive (`{userId}`, `{classId}`, `{studentId}`, `{callId}`).\n*   **Explicit State Modeling:** The `Call` entity uses a clear `status` field (`Chamado`, `Cancelado`, `Saiu`). The `diaRef` field (`YYYY-MM-DD`) provides predictable daily filtering.\n*   **Invariants:** `createdAt` and `updatedAt` timestamps are included in all relevant entities for auditing and data integrity. Ownership (`chamadoPorUid`) is recorded in `Call` documents."
+  }
+}
