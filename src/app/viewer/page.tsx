@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -33,7 +34,7 @@ export default function ViewerPage() {
   useEffect(() => {
     if (!diaRef) return;
 
-    // Monitorar chamadas em tempo real com filtro rigoroso de status "Chamado"
+    // Monitorar chamadas em tempo real (Apenas Chamados do Dia)
     const qCalls = query(
       collection(db, "calls"),
       where("diaRef", "==", diaRef),
@@ -44,11 +45,14 @@ export default function ViewerPage() {
     const unsubCalls = onSnapshot(qCalls, (s) => {
       setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (error) => {
-      console.error("Erro no listener do viewer:", error);
+      console.error("Erro no listener de chamadas do visitante:", error);
     });
 
+    // Monitorar turmas para o filtro
     const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
-    const unsubC = onSnapshot(qC, (s) => setClasses(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubC = onSnapshot(qC, (s) => {
+      setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
 
     return () => { unsubCalls(); unsubC(); };
   }, [diaRef]);
@@ -73,7 +77,7 @@ export default function ViewerPage() {
             <h2 className="text-4xl sm:text-5xl font-black text-primary tracking-tight">Próximas Saídas</h2>
             <p className="text-lg text-muted-foreground font-semibold flex items-center gap-2">
               <Clock size={20} className="text-primary/40" />
-              {diaRef ? format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR }) : "Carregando data..."}
+              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
             </p>
           </div>
 

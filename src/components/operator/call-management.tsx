@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy, getDocs, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,6 @@ export function CallManagement() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Definir diaRef uma única vez no mount para evitar inconsistências de hidratação
   const [diaRef, setDiaRef] = useState<string>("");
 
   useEffect(() => {
@@ -33,28 +33,34 @@ export function CallManagement() {
   useEffect(() => {
     if (!diaRef) return;
 
-    const unsubS = onSnapshot(collection(db, "students"), (s) => {
+    // Listener para alunos
+    const unsubS = onSnapshot(query(collection(db, "students"), orderBy("nomeExibicao", "asc")), (s) => {
       setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
+    // Listener para turmas
     const unsubC = onSnapshot(query(collection(db, "classes"), orderBy("nome", "asc")), (s) => {
       setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Ordenamos por updatedAt desc para que o mapa contenha sempre o status mais recente do aluno
+    // Listener para chamadas do dia (Realtime)
     const qCalls = query(
       collection(db, "calls"), 
-      where("diaRef", "==", diaRef),
-      orderBy("updatedAt", "asc")
+      where("diaRef", "==", diaRef)
     );
 
     const unsubCalls = onSnapshot(qCalls, (s) => {
       const callsMap: Record<string, any> = {};
       s.docs.forEach(d => {
         const data = d.data();
-        callsMap[data.studentId] = { id: d.id, ...data };
+        // Mantemos apenas a chamada mais recente por aluno para controle de estado
+        if (!callsMap[data.studentId] || data.updatedAt?.toMillis() > (callsMap[data.studentId].updatedAt?.toMillis() || 0)) {
+          callsMap[data.studentId] = { id: d.id, ...data };
+        }
       });
       setCalls(callsMap);
+    }, (error) => {
+      console.error("Erro no listener de chamadas:", error);
     });
 
     return () => { unsubS(); unsubC(); unsubCalls(); };
@@ -69,85 +75,54 @@ export function CallManagement() {
     });
   };
 
-  const handleCall = async (student: any) => {
+  const handleToggleCall = async (student: any) => {
     if (processingIds.has(student.id)) return;
     toggleProcessing(student.id, true);
 
     try {
-      // 1. Verificação dupla: Consultar Firestore para garantir que não houve chamada criada em outro terminal
-      const q = query(
-        collection(db, "calls"),
-        where("studentId", "==", student.id),
-        where("diaRef", "==", diaRef),
-        where("status", "==", "Chamado"),
-        limit(1)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        toast({ 
-          variant: "destructive", 
-          title: "Atenção", 
-          description: "Este aluno já possui uma chamada ativa." 
+      const existingCall = calls[student.id];
+
+      if (existingCall && existingCall.status === "Chamado") {
+        // Cancelar chamada existente
+        await updateDoc(doc(db, "calls", existingCall.id), {
+          status: "Cancelado",
+          updatedAt: serverTimestamp(),
         });
-        toggleProcessing(student.id, false);
-        return;
+        toast({ title: "Chamada Cancelada", description: `${student.nomeExibicao} foi removido do quadro.` });
+      } else {
+        // Se já existe um documento mas está cancelado, reutiliza ou cria novo
+        // Para simplificar e evitar bugs de histórico, se existir um cancelado de HOJE, atualizamos ele
+        if (existingCall) {
+          await updateDoc(doc(db, "calls", existingCall.id), {
+            status: "Chamado",
+            dataHoraChamado: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            chamadoPorUid: user?.uid,
+            chamadoPorEmail: user?.email,
+          });
+        } else {
+          // Criar nova chamada
+          await addDoc(collection(db, "calls"), {
+            studentId: student.id,
+            nomeExibicao: student.nomeExibicao,
+            turmaId: student.turmaId,
+            turmaNome: student.turmaNome,
+            status: "Chamado",
+            dataHoraChamado: serverTimestamp(),
+            diaRef: diaRef,
+            chamadoPorUid: user?.uid,
+            chamadoPorEmail: user?.email,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+        toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi enviado ao quadro.` });
       }
-
-      // 2. Criar nova chamada
-      await addDoc(collection(db, "calls"), {
-        studentId: student.id,
-        nomeExibicao: student.nomeExibicao,
-        turmaId: student.turmaId,
-        turmaNome: student.turmaNome,
-        status: "Chamado",
-        dataHoraChamado: serverTimestamp(),
-        diaRef: diaRef,
-        chamadoPorUid: user?.uid,
-        chamadoPorEmail: user?.email,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      toast({ 
-        title: "Chamado Realizado", 
-        description: `${student.nomeExibicao} foi adicionado ao quadro.` 
-      });
     } catch (error) {
-      console.error("Erro ao chamar aluno:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro", 
-        description: "Falha ao realizar chamada. Tente novamente." 
-      });
+      console.error("Erro na operação de chamada:", error);
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao processar solicitação." });
     } finally {
       toggleProcessing(student.id, false);
-    }
-  };
-
-  const handleCancel = async (callId: string, studentName: string, studentId: string) => {
-    if (processingIds.has(studentId)) return;
-    toggleProcessing(studentId, true);
-    
-    try {
-      await updateDoc(doc(db, "calls", callId), {
-        status: "Cancelado",
-        updatedAt: serverTimestamp(),
-      });
-      toast({ 
-        title: "Chamada Cancelada", 
-        description: `A saída de ${studentName} foi interrompida.` 
-      });
-    } catch (error) {
-      console.error("Erro ao cancelar:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro", 
-        description: "Não foi possível cancelar a chamada." 
-      });
-    } finally {
-      toggleProcessing(studentId, false);
     }
   };
 
@@ -189,7 +164,6 @@ export function CallManagement() {
           filteredStudents.map((s) => {
             const currentCall = calls[s.id];
             const isCalled = currentCall && currentCall.status === "Chamado";
-            const isCanceled = currentCall && currentCall.status === "Cancelado";
             const isProcessing = processingIds.has(s.id);
 
             return (
@@ -201,7 +175,7 @@ export function CallManagement() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "h-16 w-16 rounded-full flex items-center justify-center shadow-inner transition-colors duration-500",
-                      isCalled ? "bg-green-100 text-green-600" : isCanceled ? "bg-red-100 text-red-600" : "bg-secondary text-primary/40"
+                      isCalled ? "bg-green-100 text-green-600" : "bg-secondary text-primary/40"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={32} />}
                     </div>
@@ -216,10 +190,6 @@ export function CallManagement() {
                       <span className="status-badge status-called animate-pulse">
                         <CheckCircle2 size={12} className="mr-1" /> Chamado
                       </span>
-                    ) : isCanceled ? (
-                      <span className="status-badge status-canceled">
-                        <XCircle size={12} className="mr-1" /> Cancelado
-                      </span>
                     ) : (
                       <span className="status-badge status-waiting">
                         Aguardando
@@ -228,25 +198,22 @@ export function CallManagement() {
                   </div>
 
                   <div className="pt-2">
-                    {isCalled ? (
-                      <Button
-                        variant="destructive"
-                        className="w-full gap-2 h-12 rounded-xl font-bold shadow-md shadow-red-200 transition-all active:scale-95"
-                        disabled={isProcessing}
-                        onClick={() => handleCancel(currentCall.id, s.nomeExibicao, s.id)}
-                      >
-                        <XCircle size={18} /> Cancelar Chamada
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="default"
-                        className="w-full gap-2 h-12 rounded-xl font-bold gradient-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
-                        disabled={isProcessing}
-                        onClick={() => handleCall(s)}
-                      >
-                        <PhoneOutgoing size={18} /> Chamada de Saída
-                      </Button>
-                    )}
+                    <Button
+                      variant={isCalled ? "destructive" : "default"}
+                      className={cn(
+                        "w-full gap-2 h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
+                        !isCalled && "gradient-primary shadow-primary/20",
+                        isCalled && "shadow-red-200"
+                      )}
+                      disabled={isProcessing}
+                      onClick={() => handleToggleCall(s)}
+                    >
+                      {isCalled ? (
+                        <><XCircle size={18} /> Cancelar Chamada</>
+                      ) : (
+                        <><PhoneOutgoing size={18} /> Chamada de Saída</>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
