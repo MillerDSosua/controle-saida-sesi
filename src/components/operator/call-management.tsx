@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy, getDocs, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, PhoneOutgoing, XCircle, User, CheckCircle2 } from "lucide-react";
+import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export function CallManagement() {
   const { user } = useAuth();
@@ -24,23 +25,19 @@ export function CallManagement() {
   const diaRef = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
-    // Listen for all students
     const unsubS = onSnapshot(collection(db, "students"), (s) => {
       setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Listen for classes
     const unsubC = onSnapshot(query(collection(db, "classes"), orderBy("nome", "asc")), (s) => {
       setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Listen for today's calls
     const qCalls = query(collection(db, "calls"), where("diaRef", "==", diaRef));
     const unsubCalls = onSnapshot(qCalls, (s) => {
       const callsMap: Record<string, any> = {};
       s.docs.forEach(d => {
         const data = d.data();
-        // If multiple calls exist for same student, take the latest one (simplified)
         callsMap[data.studentId] = { id: d.id, ...data };
       });
       setCalls(callsMap);
@@ -64,21 +61,23 @@ export function CallManagement() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Chamado!", description: `${student.nomeExibicao} foi chamado.` });
+      toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi para o quadro de saída.` });
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível realizar a chamada." });
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao realizar chamada." });
     }
   };
 
   const handleCancel = async (callId: string, studentName: string) => {
+    if (!confirm(`Deseja cancelar a chamada de ${studentName}?`)) return;
+    
     try {
       await updateDoc(doc(db, "calls", callId), {
         status: "Cancelado",
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Cancelado", description: `A chamada de ${studentName} foi cancelada.` });
+      toast({ title: "Chamada Cancelada", description: `O registro de ${studentName} foi atualizado.` });
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Erro ao cancelar." });
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao cancelar." });
     }
   };
 
@@ -89,78 +88,104 @@ export function CallManagement() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+    <div className="space-y-8 py-4">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl shadow-sm border">
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
           <Input
             placeholder="Buscar aluno por nome..."
-            className="pl-10 h-12 apple-blur"
+            className="pl-12 h-12 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select value={selectedClass} onValueChange={setSelectedClass}>
-          <SelectTrigger className="h-12 apple-blur">
-            <SelectValue placeholder="Filtrar por turma" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as turmas</SelectItem>
-            {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="w-full md:w-64">
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="h-12 bg-secondary/30 border-none rounded-xl">
+              <SelectValue placeholder="Todas as Turmas" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Todas as turmas</SelectItem>
+              {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredStudents.length > 0 ? (
           filteredStudents.map((s) => {
             const currentCall = calls[s.id];
             const isCalled = currentCall && currentCall.status === "Chamado";
+            const isCanceled = currentCall && currentCall.status === "Cancelado";
 
             return (
-              <Card key={s.id} className={`premium-card border-l-4 ${isCalled ? 'border-l-accent' : 'border-l-primary/20'}`}>
-                <CardContent className="p-4 pt-6 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${isCalled ? 'bg-accent/20 text-accent' : 'bg-secondary text-primary'}`}>
-                        <User size={20} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold leading-tight line-clamp-1">{s.nomeExibicao}</h3>
-                        <p className="text-xs text-muted-foreground">{s.turmaNome}</p>
-                      </div>
+              <Card key={s.id} className={cn(
+                "premium-card group overflow-hidden border-2",
+                isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent"
+              )}>
+                <CardContent className="p-6 space-y-5">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "h-16 w-16 rounded-full flex items-center justify-center shadow-inner transition-colors duration-500",
+                      isCalled ? "bg-green-100 text-green-600" : isCanceled ? "bg-red-100 text-red-600" : "bg-secondary text-primary/40"
+                    )}>
+                      <User size={32} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-primary leading-tight truncate">{s.nomeExibicao}</h3>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{s.turmaNome}</p>
                     </div>
                   </div>
 
-                  {isCalled ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-[10px] text-accent font-bold uppercase tracking-wider">
-                        <CheckCircle2 size={12} /> Chamado hoje
-                      </div>
+                  <div className="flex items-center gap-2">
+                    {isCalled ? (
+                      <span className="status-badge status-called">
+                        <CheckCircle2 size={12} className="mr-1" /> Chamado
+                      </span>
+                    ) : isCanceled ? (
+                      <span className="status-badge status-canceled">
+                        <XCircle size={12} className="mr-1" /> Cancelado
+                      </span>
+                    ) : (
+                      <span className="status-badge status-waiting">
+                        Aguardando
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    {isCalled ? (
                       <Button
                         variant="destructive"
-                        className="w-full gap-2 h-10 shadow-sm"
+                        className="w-full gap-2 h-12 rounded-xl font-bold shadow-md shadow-red-200"
                         onClick={() => handleCancel(currentCall.id, s.nomeExibicao)}
                       >
-                        <XCircle size={16} /> Cancelar Chamada
+                        <XCircle size={18} /> Cancelar Chamada
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="default"
-                      className="w-full gap-2 h-10 shadow-md shadow-primary/10"
-                      onClick={() => handleCall(s)}
-                    >
-                      <PhoneOutgoing size={16} /> Chamada de Saída
-                    </Button>
-                  )}
+                    ) : (
+                      <Button
+                        variant="default"
+                        className="w-full gap-2 h-12 rounded-xl font-bold gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                        onClick={() => handleCall(s)}
+                      >
+                        <PhoneOutgoing size={18} /> Chamar Aluno
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
           })
         ) : (
-          <div className="col-span-full py-20 text-center">
-            <p className="text-muted-foreground">Nenhum aluno encontrado para os filtros aplicados.</p>
+          <div className="col-span-full py-32 flex flex-col items-center justify-center text-center space-y-6 opacity-40">
+            <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center">
+              <AlertCircle size={48} className="text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">Nenhum aluno encontrado</h3>
+              <p className="max-w-xs mx-auto">Tente ajustar seus filtros ou cadastre novos alunos no sistema.</p>
+            </div>
           </div>
         )}
       </div>
