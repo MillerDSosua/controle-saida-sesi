@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User, Users } from "lucide-react";
+import { Clock, User, Users, Bus, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ViewerPage() {
   const { user, role, loading } = useAuth();
@@ -19,12 +20,7 @@ export default function ViewerPage() {
   const [calls, setCalls] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("all");
-  const [diaRef, setDiaRef] = useState<string>("");
-
-  useEffect(() => {
-    // Estabiliza a data de hoje para o filtro
-    setDiaRef(format(new Date(), "yyyy-MM-dd"));
-  }, []);
+  const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   useEffect(() => {
     if (!loading && (!user || role !== "viewer")) {
@@ -33,9 +29,7 @@ export default function ViewerPage() {
   }, [user, role, loading, router]);
 
   useEffect(() => {
-    if (!diaRef) return;
-
-    // Monitorar chamadas em tempo real (Apenas Chamados do Dia)
+    // Monitorar todas as chamadas ativas de hoje
     const qCalls = query(
       collection(db, "calls"),
       where("diaRef", "==", diaRef),
@@ -45,16 +39,12 @@ export default function ViewerPage() {
     
     const unsubCalls = onSnapshot(qCalls, (s) => {
       setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      console.error("Erro no listener de chamadas do visitante:", error);
     });
 
-    // Monitorar turmas reais para o filtro
+    // Monitorar turmas para o filtro
     const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
     const unsubC = onSnapshot(qC, (s) => {
       setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      console.error("Erro no listener de turmas do visitante:", error);
     });
 
     return () => { unsubCalls(); unsubC(); };
@@ -68,9 +58,18 @@ export default function ViewerPage() {
     );
   }
 
-  const filteredCalls = selectedClass === "all" 
-    ? calls 
-    : calls.filter(c => c.turmaId === selectedClass);
+  // Lógica de filtragem inteligente
+  const filteredCalls = calls.filter(call => {
+    if (selectedClass === "all") return true;
+    
+    if (call.tipo === "escolar") {
+      // Mostrar escolar se a turma selecionada estiver entre as relacionadas
+      return call.turmasRelacionadas?.includes(selectedClass);
+    } else {
+      // Chamada normal de aluno
+      return call.turmaId === selectedClass;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -92,7 +91,7 @@ export default function ViewerPage() {
                 <Users size={20} />
               </div>
               <div>
-                <span className="block text-2xl font-bold text-primary leading-none">{calls.length}</span>
+                <span className="block text-2xl font-bold text-primary leading-none">{filteredCalls.length}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados Ativos</span>
               </div>
             </div>
@@ -116,28 +115,55 @@ export default function ViewerPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredCalls.length > 0 ? (
             filteredCalls.map((call) => (
-              <Card key={call.id} className="premium-card border-t-[10px] border-t-primary animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700">
+              <Card 
+                key={call.id} 
+                className={cn(
+                  "premium-card border-t-[10px] animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700",
+                  call.tipo === 'escolar' ? "border-t-orange-500 bg-orange-50/5" : "border-t-primary"
+                )}
+              >
                 <CardContent className="p-8">
                   <div className="flex flex-col items-center text-center space-y-6">
-                    <div className="h-24 w-24 rounded-full bg-primary/5 text-primary flex items-center justify-center shadow-inner relative">
-                      <User size={48} />
+                    <div className={cn(
+                      "h-24 w-24 rounded-full flex items-center justify-center shadow-inner relative",
+                      call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
+                    )}>
+                      {call.tipo === 'escolar' ? <Bus size={48} /> : <User size={48} />}
                       <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-green-500 border-4 border-white flex items-center justify-center animate-pulse">
                         <div className="h-2 w-2 rounded-full bg-white"></div>
                       </div>
                     </div>
+                    
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-primary leading-tight tracking-tight line-clamp-2 min-h-[4rem] flex items-center justify-center">
-                        {call.nomeExibicao}
+                      <h3 className={cn(
+                        "text-2xl font-black leading-tight tracking-tight line-clamp-2 min-h-[4rem] flex items-center justify-center",
+                        call.tipo === 'escolar' ? "text-orange-700" : "text-primary"
+                      )}>
+                        {call.nomeExibicao || call.escolarNome}
                       </h3>
-                      <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em]">{call.turmaNome}</p>
+                      <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em]">
+                        {call.tipo === 'escolar' ? "Transporte Escolar" : call.turmaNome}
+                      </p>
                     </div>
+
+                    {call.tipo === 'escolar' && (
+                      <div className="w-full bg-orange-100/50 py-2 px-3 rounded-xl border border-orange-200">
+                         <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">Alunos Disponíveis</span>
+                         <div className="text-[11px] font-bold text-orange-800 truncate">
+                            {call.alunosRelacionados?.join(", ") || "Todos vinculados"}
+                         </div>
+                      </div>
+                    )}
+
                     <div className="w-full h-px bg-border"></div>
+                    
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Horário do Chamado</span>
-                      <div className="flex items-center justify-center gap-2 text-primary">
-                        <span className="text-4xl font-black tabular-nums">
-                          {call.dataHoraChamado ? format(call.dataHoraChamado.toDate(), "HH:mm") : "--:--"}
-                        </span>
+                      <div className={cn(
+                        "flex items-center justify-center gap-2 font-black tabular-nums text-4xl",
+                        call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
+                      )}>
+                        {call.dataHoraChamado ? format(call.dataHoraChamado.toDate(), "HH:mm") : "--:--"}
                       </div>
                     </div>
                   </div>

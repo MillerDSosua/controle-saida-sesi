@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,24 +11,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Search, User } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, User, Bus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function StudentManagement() {
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [escolares, setEscolares] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "" });
+  const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "", escolarId: "" });
   const { toast } = useToast();
 
   useEffect(() => {
-    const qS = query(collection(db, "students"), orderBy("nomeExibicao", "asc"));
-    const unsubS = onSnapshot(qS, (s) => setStudents(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
-    const unsubC = onSnapshot(qC, (s) => setClasses(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { unsubS(); unsubC(); };
+    const unsubS = onSnapshot(query(collection(db, "students"), orderBy("nomeExibicao", "asc")), (s) => {
+      setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    const unsubC = onSnapshot(query(collection(db, "classes"), orderBy("nome", "asc")), (s) => {
+      setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    const unsubE = onSnapshot(query(collection(db, "escolares"), orderBy("nome", "asc")), (s) => {
+      setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => { unsubS(); unsubC(); unsubE(); };
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -35,10 +42,15 @@ export function StudentManagement() {
     const selectedClass = classes.find(c => c.id === formData.turmaId);
     if (!selectedClass) return;
 
+    const selectedEscolar = escolares.find(e => e.id === formData.escolarId);
+
     try {
       const data = {
-        ...formData,
+        nomeExibicao: formData.nomeExibicao,
+        turmaId: formData.turmaId,
         turmaNome: selectedClass.nome,
+        escolarId: formData.escolarId || null,
+        escolarNome: selectedEscolar ? selectedEscolar.nome : null,
         updatedAt: serverTimestamp(),
       };
 
@@ -55,9 +67,9 @@ export function StudentManagement() {
       }
       setIsDialogOpen(false);
       setEditingStudent(null);
-      setFormData({ nomeExibicao: "", turmaId: "" });
+      setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" });
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar." });
+      toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar aluno." });
     }
   };
 
@@ -79,92 +91,125 @@ export function StudentManagement() {
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <Input
-            placeholder="Buscar alunos..."
-            className="pl-10"
+            placeholder="Buscar alunos por nome ou turma..."
+            className="pl-10 h-12 rounded-xl bg-white border-2"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
-          if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "" }); }
+          if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
         }}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto gap-2">
+            <Button className="w-full sm:w-auto gap-2 h-12 rounded-xl gradient-primary shadow-lg">
               <Plus size={18} /> Novo Aluno
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="rounded-2xl">
             <form onSubmit={handleSave}>
               <DialogHeader>
                 <DialogTitle>{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-4">
+              <div className="py-6 space-y-5">
                 <div className="space-y-2">
-                  <Label>Nome Completo</Label>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</Label>
                   <Input
                     value={formData.nomeExibicao}
                     onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
-                    placeholder="Nome do aluno"
+                    placeholder="Ex: Miller Daniel"
                     required
+                    className="h-12 rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Turma</Label>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Turma Atual</Label>
                   <Select
                     value={formData.turmaId}
                     onValueChange={(val) => setFormData({ ...formData, turmaId: val })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Selecione a turma" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl">
                       {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Escolar (Opcional)</Label>
+                  <Select
+                    value={formData.escolarId}
+                    onValueChange={(val) => setFormData({ ...formData, escolarId: val })}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue placeholder="Nenhum escolar vinculado" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="">Nenhum escolar</SelectItem>
+                      {escolares.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" className="w-full h-12 rounded-xl gradient-primary font-bold">Salvar Cadastro</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card className="premium-card">
+      <Card className="premium-card overflow-hidden">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead>Aluno</TableHead>
-                <TableHead>Turma</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="font-bold py-5">Aluno</TableHead>
+                <TableHead className="font-bold">Turma</TableHead>
+                <TableHead className="font-bold">Escolar</TableHead>
+                <TableHead className="text-right font-bold pr-8">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">
+                  <TableRow key={s.id} className="hover:bg-slate-50/50">
+                    <TableCell className="font-medium py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-primary">
-                          <User size={14} />
+                        <div className="h-9 w-9 rounded-full bg-primary/5 flex items-center justify-center text-primary">
+                          <User size={16} />
                         </div>
                         {s.nomeExibicao}
                       </div>
                     </TableCell>
-                    <TableCell>{s.turmaNome}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => {
+                    <TableCell>
+                      <span className="font-bold text-primary/70">{s.turmaNome}</span>
+                    </TableCell>
+                    <TableCell>
+                      {s.escolarNome ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Bus size={14} className="text-primary/40" />
+                          <span className="text-xs font-semibold">{s.escolarNome}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => {
                           setEditingStudent(s);
-                          setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId });
+                          setFormData({ 
+                            nomeExibicao: s.nomeExibicao, 
+                            turmaId: s.turmaId,
+                            escolarId: s.escolarId || ""
+                          });
                           setIsDialogOpen(true);
                         }}>
                           <Edit2 size={16} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(s.id)}>
+                        <Button variant="ghost" size="icon" className="text-destructive h-10 w-10 rounded-xl" onClick={() => handleDelete(s.id)}>
                           <Trash2 size={16} />
                         </Button>
                       </div>
@@ -173,8 +218,8 @@ export function StudentManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-10 text-muted-foreground">
-                    Nenhum aluno encontrado.
+                  <TableCell colSpan={4} className="text-center py-20 text-muted-foreground">
+                    Nenhum aluno cadastrado.
                   </TableCell>
                 </TableRow>
               )}

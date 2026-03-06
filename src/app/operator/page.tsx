@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +10,8 @@ import { StudentManagement } from "@/components/operator/student-management";
 import { ClassManagement } from "@/components/operator/class-management";
 import { CallManagement } from "@/components/operator/call-management";
 import { HistoryManagement } from "@/components/operator/history-management";
-import { Users, GraduationCap, PhoneOutgoing, History } from "lucide-react";
+import { EscolarManagement } from "@/components/operator/escolar-management";
+import { Users, GraduationCap, PhoneOutgoing, History, Bus } from "lucide-react";
 
 export default function OperatorPage() {
   const { user, role, loading } = useAuth();
@@ -32,21 +34,25 @@ export default function OperatorPage() {
 
       <main className="flex-1 container mx-auto px-4 py-6 sm:px-6">
         <Tabs defaultValue="calls" className="space-y-6" onValueChange={setActiveTab}>
-          <div className="flex items-center justify-center sm:justify-start">
-            <TabsList className="grid w-full grid-cols-4 sm:w-auto apple-blur p-1 h-12">
-              <TabsTrigger value="calls" className="flex items-center gap-2 px-6">
+          <div className="flex items-center justify-center sm:justify-start overflow-x-auto pb-2">
+            <TabsList className="flex w-full sm:w-auto apple-blur p-1 h-12">
+              <TabsTrigger value="calls" className="flex items-center gap-2 px-4 sm:px-6">
                 <PhoneOutgoing size={16} />
                 <span className="hidden sm:inline">Chamadas</span>
               </TabsTrigger>
-              <TabsTrigger value="students" className="flex items-center gap-2 px-6">
+              <TabsTrigger value="escolares" className="flex items-center gap-2 px-4 sm:px-6">
+                <Bus size={16} />
+                <span className="hidden sm:inline">Escolares</span>
+              </TabsTrigger>
+              <TabsTrigger value="students" className="flex items-center gap-2 px-4 sm:px-6">
                 <GraduationCap size={16} />
                 <span className="hidden sm:inline">Alunos</span>
               </TabsTrigger>
-              <TabsTrigger value="classes" className="flex items-center gap-2 px-6">
+              <TabsTrigger value="classes" className="flex items-center gap-2 px-4 sm:px-6">
                 <Users size={16} />
                 <span className="hidden sm:inline">Turmas</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2 px-6">
+              <TabsTrigger value="history" className="flex items-center gap-2 px-4 sm:px-6">
                 <History size={16} />
                 <span className="hidden sm:inline">Histórico</span>
               </TabsTrigger>
@@ -56,6 +62,9 @@ export default function OperatorPage() {
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <TabsContent value="calls">
               <CallManagement />
+            </TabsContent>
+            <TabsContent value="escolares">
+              <EscolarManagement />
             </TabsContent>
             <TabsContent value="students">
               <StudentManagement />
