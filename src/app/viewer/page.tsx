@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User, Filter, Users } from "lucide-react";
+import { Clock, User, Users } from "lucide-react";
 
 export default function ViewerPage() {
   const { user, role, loading } = useAuth();
@@ -18,8 +18,11 @@ export default function ViewerPage() {
   const [calls, setCalls] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("all");
+  const [diaRef, setDiaRef] = useState<string>("");
 
-  const diaRef = format(new Date(), "yyyy-MM-dd");
+  useEffect(() => {
+    setDiaRef(format(new Date(), "yyyy-MM-dd"));
+  }, []);
 
   useEffect(() => {
     if (!loading && (!user || role !== "viewer")) {
@@ -28,14 +31,20 @@ export default function ViewerPage() {
   }, [user, role, loading, router]);
 
   useEffect(() => {
+    if (!diaRef) return;
+
+    // Monitorar chamadas em tempo real com filtro rigoroso de status "Chamado"
     const qCalls = query(
       collection(db, "calls"),
       where("diaRef", "==", diaRef),
       where("status", "==", "Chamado"),
       orderBy("dataHoraChamado", "desc")
     );
+    
     const unsubCalls = onSnapshot(qCalls, (s) => {
       setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.error("Erro no listener do viewer:", error);
     });
 
     const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
@@ -45,7 +54,11 @@ export default function ViewerPage() {
   }, [diaRef]);
 
   if (loading || !user || role !== "viewer") {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
   }
 
   const filteredCalls = selectedClass === "all" ? calls : calls.filter(c => c.turmaId === selectedClass);
@@ -60,7 +73,7 @@ export default function ViewerPage() {
             <h2 className="text-4xl sm:text-5xl font-black text-primary tracking-tight">Próximas Saídas</h2>
             <p className="text-lg text-muted-foreground font-semibold flex items-center gap-2">
               <Clock size={20} className="text-primary/40" />
-              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+              {diaRef ? format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR }) : "Carregando data..."}
             </p>
           </div>
 
@@ -71,13 +84,13 @@ export default function ViewerPage() {
               </div>
               <div>
                 <span className="block text-2xl font-bold text-primary">{calls.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados Hoje</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados Ativos</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger className="w-full sm:w-64 h-14 bg-white border-2 rounded-2xl text-lg font-bold shadow-sm">
+                <SelectTrigger className="w-full sm:w-64 h-14 bg-white border-2 rounded-2xl text-lg font-bold shadow-sm focus:ring-primary/20 transition-all">
                   <SelectValue placeholder="Filtrar por Turma" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl">
@@ -92,7 +105,7 @@ export default function ViewerPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredCalls.length > 0 ? (
             filteredCalls.map((call) => (
-              <Card key={call.id} className="premium-card border-t-[10px] border-t-primary animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <Card key={call.id} className="premium-card border-t-[10px] border-t-primary animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700">
                 <CardContent className="p-8">
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="h-24 w-24 rounded-full bg-primary/5 text-primary flex items-center justify-center shadow-inner relative">
@@ -136,10 +149,10 @@ export default function ViewerPage() {
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-xs font-black text-primary/60 uppercase tracking-widest">Conectado ao Servidor SESI</span>
+            <span className="text-xs font-black text-primary/60 uppercase tracking-widest">Conexão SESI Ativa</span>
           </div>
           <div className="hidden sm:block">
-            <span className="text-xs font-medium text-muted-foreground">© {new Date().getFullYear()} SESI - Controle de Saída Inteligente</span>
+            <span className="text-xs font-medium text-muted-foreground">© {new Date().getFullYear()} SESI - Saída Inteligente</span>
           </div>
         </div>
       </footer>

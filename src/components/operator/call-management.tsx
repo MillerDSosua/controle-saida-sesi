@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy } from "firebase/firestore";
+import { useEffect, useState, useMemo } from "react";
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -20,11 +20,19 @@ export function CallManagement() {
   const [calls, setCalls] = useState<Record<string, any>>({});
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const diaRef = format(new Date(), "yyyy-MM-dd");
+  // Definir diaRef uma única vez no mount para evitar inconsistências de hidratação
+  const [diaRef, setDiaRef] = useState<string>("");
 
   useEffect(() => {
+    setDiaRef(format(new Date(), "yyyy-MM-dd"));
+  }, []);
+
+  useEffect(() => {
+    if (!diaRef) return;
+
     const unsubS = onSnapshot(collection(db, "students"), (s) => {
       setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
@@ -33,7 +41,13 @@ export function CallManagement() {
       setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    const qCalls = query(collection(db, "calls"), where("diaRef", "==", diaRef));
+    // Ordenamos por updatedAt desc para que o mapa contenha sempre o status mais recente do aluno
+    const qCalls = query(
+      collection(db, "calls"), 
+      where("diaRef", "==", diaRef),
+      orderBy("updatedAt", "asc")
+    );
+
     const unsubCalls = onSnapshot(qCalls, (s) => {
       const callsMap: Record<string, any> = {};
       s.docs.forEach(d => {
@@ -46,8 +60,42 @@ export function CallManagement() {
     return () => { unsubS(); unsubC(); unsubCalls(); };
   }, [diaRef]);
 
+  const toggleProcessing = (id: string, isProcessing: boolean) => {
+    setProcessingIds(prev => {
+      const next = new Set(prev);
+      if (isProcessing) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
   const handleCall = async (student: any) => {
+    if (processingIds.has(student.id)) return;
+    toggleProcessing(student.id, true);
+
     try {
+      // 1. Verificação dupla: Consultar Firestore para garantir que não houve chamada criada em outro terminal
+      const q = query(
+        collection(db, "calls"),
+        where("studentId", "==", student.id),
+        where("diaRef", "==", diaRef),
+        where("status", "==", "Chamado"),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        toast({ 
+          variant: "destructive", 
+          title: "Atenção", 
+          description: "Este aluno já possui uma chamada ativa." 
+        });
+        toggleProcessing(student.id, false);
+        return;
+      }
+
+      // 2. Criar nova chamada
       await addDoc(collection(db, "calls"), {
         studentId: student.id,
         nomeExibicao: student.nomeExibicao,
@@ -61,31 +109,55 @@ export function CallManagement() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi para o quadro de saída.` });
+
+      toast({ 
+        title: "Chamado Realizado", 
+        description: `${student.nomeExibicao} foi adicionado ao quadro.` 
+      });
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao realizar chamada." });
+      console.error("Erro ao chamar aluno:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro", 
+        description: "Falha ao realizar chamada. Tente novamente." 
+      });
+    } finally {
+      toggleProcessing(student.id, false);
     }
   };
 
-  const handleCancel = async (callId: string, studentName: string) => {
-    if (!confirm(`Deseja cancelar a chamada de ${studentName}?`)) return;
+  const handleCancel = async (callId: string, studentName: string, studentId: string) => {
+    if (processingIds.has(studentId)) return;
+    toggleProcessing(studentId, true);
     
     try {
       await updateDoc(doc(db, "calls", callId), {
         status: "Cancelado",
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Chamada Cancelada", description: `O registro de ${studentName} foi atualizado.` });
+      toast({ 
+        title: "Chamada Cancelada", 
+        description: `A saída de ${studentName} foi interrompida.` 
+      });
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao cancelar." });
+      console.error("Erro ao cancelar:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro", 
+        description: "Não foi possível cancelar a chamada." 
+      });
+    } finally {
+      toggleProcessing(studentId, false);
     }
   };
 
-  const filteredStudents = students.filter(s => {
-    const matchSearch = s.nomeExibicao.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchClass = selectedClass === "all" || s.turmaId === selectedClass;
-    return matchSearch && matchClass;
-  });
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      const matchSearch = s.nomeExibicao.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchClass = selectedClass === "all" || s.turmaId === selectedClass;
+      return matchSearch && matchClass;
+    });
+  }, [students, searchTerm, selectedClass]);
 
   return (
     <div className="space-y-8 py-4">
@@ -118,10 +190,11 @@ export function CallManagement() {
             const currentCall = calls[s.id];
             const isCalled = currentCall && currentCall.status === "Chamado";
             const isCanceled = currentCall && currentCall.status === "Cancelado";
+            const isProcessing = processingIds.has(s.id);
 
             return (
               <Card key={s.id} className={cn(
-                "premium-card group overflow-hidden border-2",
+                "premium-card group overflow-hidden border-2 transition-all duration-300",
                 isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent"
               )}>
                 <CardContent className="p-6 space-y-5">
@@ -130,7 +203,7 @@ export function CallManagement() {
                       "h-16 w-16 rounded-full flex items-center justify-center shadow-inner transition-colors duration-500",
                       isCalled ? "bg-green-100 text-green-600" : isCanceled ? "bg-red-100 text-red-600" : "bg-secondary text-primary/40"
                     )}>
-                      <User size={32} />
+                      {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={32} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-bold text-primary leading-tight truncate">{s.nomeExibicao}</h3>
@@ -140,7 +213,7 @@ export function CallManagement() {
 
                   <div className="flex items-center gap-2">
                     {isCalled ? (
-                      <span className="status-badge status-called">
+                      <span className="status-badge status-called animate-pulse">
                         <CheckCircle2 size={12} className="mr-1" /> Chamado
                       </span>
                     ) : isCanceled ? (
@@ -158,18 +231,20 @@ export function CallManagement() {
                     {isCalled ? (
                       <Button
                         variant="destructive"
-                        className="w-full gap-2 h-12 rounded-xl font-bold shadow-md shadow-red-200"
-                        onClick={() => handleCancel(currentCall.id, s.nomeExibicao)}
+                        className="w-full gap-2 h-12 rounded-xl font-bold shadow-md shadow-red-200 transition-all active:scale-95"
+                        disabled={isProcessing}
+                        onClick={() => handleCancel(currentCall.id, s.nomeExibicao, s.id)}
                       >
                         <XCircle size={18} /> Cancelar Chamada
                       </Button>
                     ) : (
                       <Button
                         variant="default"
-                        className="w-full gap-2 h-12 rounded-xl font-bold gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                        className="w-full gap-2 h-12 rounded-xl font-bold gradient-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+                        disabled={isProcessing}
                         onClick={() => handleCall(s)}
                       >
-                        <PhoneOutgoing size={18} /> Chamar Aluno
+                        <PhoneOutgoing size={18} /> Chamada de Saída
                       </Button>
                     )}
                   </div>
