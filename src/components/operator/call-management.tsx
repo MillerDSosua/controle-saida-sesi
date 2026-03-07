@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -35,17 +36,16 @@ export function CallManagement() {
   useEffect(() => {
     if (!diaRef || !user) return;
 
+    console.log("Iniciando listeners no Operador para o dia:", diaRef);
+
     const unsubS = onSnapshot(
       query(collection(db, "students"), orderBy("nomeExibicao", "asc")), 
       (s) => {
         setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'students',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro no listener de alunos:", error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'students', operation: 'list' }));
       }
     );
 
@@ -55,11 +55,8 @@ export function CallManagement() {
         setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'classes',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro no listener de turmas:", error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'list' }));
       }
     );
 
@@ -71,9 +68,11 @@ export function CallManagement() {
     const unsubCalls = onSnapshot(
       qCalls, 
       (s) => {
+        console.log(`Recebidas ${s.docs.length} chamadas do dia ${diaRef}`);
         const callsMap: Record<string, any> = {};
         s.docs.forEach(d => {
           const data = d.data();
+          // Manter o registro mais recente para cada estudante no dia
           if (!callsMap[data.studentId] || data.updatedAt?.toMillis() > (callsMap[data.studentId].updatedAt?.toMillis() || 0)) {
             callsMap[data.studentId] = { id: d.id, ...data };
           }
@@ -81,11 +80,8 @@ export function CallManagement() {
         setCalls(callsMap);
       }, 
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'calls',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Erro no listener de chamadas:", error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'calls', operation: 'list' }));
       }
     );
 
@@ -105,40 +101,44 @@ export function CallManagement() {
     if (processingIds.has(student.id)) return;
     toggleProcessing(student.id, true);
 
-    try {
-      const existingCall = calls[student.id];
+    console.log(">>> AÇÃO: Toggle Call para", student.nomeExibicao, "(ID:", student.id, ")");
+    const existingCall = calls[student.id];
 
+    try {
       if (existingCall && existingCall.status === "Chamado") {
-        updateDoc(doc(db, "calls", existingCall.id), {
+        console.log("Cancelando chamada ativa:", existingCall.id);
+        const callRef = doc(db, "calls", existingCall.id);
+        const payload = {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
-        }).catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: `calls/${existingCall.id}`,
-            operation: 'update',
-            requestResourceData: { status: "Cancelado", updatedAt: new Date() },
-          });
-          errorEmitter.emit('permission-error', permissionError);
+        };
+        
+        console.log("Gravando payload de cancelamento no Firestore...");
+        await updateDoc(callRef, payload);
+        console.log("Sucesso Firestore: Chamada cancelada");
+        
+        toast({ 
+          title: "Chamada Cancelada", 
+          description: `${student.nomeExibicao} foi removido do quadro.` 
         });
-        toast({ title: "Chamada Cancelada", description: `${student.nomeExibicao} foi removido do quadro.` });
       } else {
         if (existingCall) {
-          updateDoc(doc(db, "calls", existingCall.id), {
+          console.log("Reativando chamada existente:", existingCall.id);
+          const callRef = doc(db, "calls", existingCall.id);
+          const payload = {
             status: "Chamado",
             dataHoraChamado: serverTimestamp(),
             updatedAt: serverTimestamp(),
             chamadoPorUid: user?.uid,
             chamadoPorEmail: user?.email,
-          }).catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-              path: `calls/${existingCall.id}`,
-              operation: 'update',
-              requestResourceData: { status: "Chamado" },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
+          };
+          
+          console.log("Gravando payload de reativação no Firestore...");
+          await updateDoc(callRef, payload);
+          console.log("Sucesso Firestore: Aluno re-chamado");
         } else {
-          addDoc(collection(db, "calls"), {
+          console.log("Criando novo registro de chamada");
+          const payload = {
             studentId: student.id,
             nomeExibicao: student.nomeExibicao,
             turmaId: student.turmaId,
@@ -150,18 +150,25 @@ export function CallManagement() {
             chamadoPorEmail: user?.email,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-          }).catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-              path: 'calls',
-              operation: 'create',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
+          };
+          
+          console.log("Enviando novo documento para a collection 'calls'...");
+          await addDoc(collection(db, "calls"), payload);
+          console.log("Sucesso Firestore: Novo chamado criado");
         }
-        toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi enviado ao quadro.` });
+        
+        toast({ 
+          title: "Chamado Realizado", 
+          description: `${student.nomeExibicao} foi enviado ao quadro.` 
+        });
       }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao processar solicitação." });
+    } catch (error: any) {
+      console.error("FALHA CRÍTICA na escrita do Firestore:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro de Conexão", 
+        description: error.message || "Não foi possível registrar a chamada. Verifique sua rede." 
+      });
     } finally {
       toggleProcessing(student.id, false);
     }

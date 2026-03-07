@@ -34,17 +34,15 @@ export function EscolarManagement() {
   useEffect(() => {
     if (!user) return;
 
+    console.log("Iniciando listeners Escolares para o dia:", diaRef);
+
     const unsubE = onSnapshot(
       query(collection(db, "escolares"), orderBy("nome", "asc")), 
       (s) => {
         setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'escolares',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'escolares', operation: 'list' }));
       }
     );
 
@@ -54,11 +52,7 @@ export function EscolarManagement() {
         setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'students',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'students', operation: 'list' }));
       }
     );
 
@@ -81,11 +75,7 @@ export function EscolarManagement() {
         setCalls(callsMap);
       },
       async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'calls',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'calls', operation: 'list' }));
       }
     );
 
@@ -142,68 +132,60 @@ export function EscolarManagement() {
     if (processingIds.has(escolar.id)) return;
     toggleProcessing(escolar.id, true);
 
-    try {
-      const existingCall = calls[escolar.id];
-      const relatedStudents = students.filter(s => s.escolarId === escolar.id);
-      const relatedClasses = Array.from(new Set(relatedStudents.map(s => s.turmaId)));
+    console.log(">>> AÇÃO: Toggle Escolar para", escolar.nome);
+    const existingCall = calls[escolar.id];
+    const relatedStudents = students.filter(s => s.escolarId === escolar.id);
+    const relatedClasses = Array.from(new Set(relatedStudents.map(s => s.turmaId)));
 
+    try {
       if (existingCall && existingCall.status === "Chamado") {
-        updateDoc(doc(db, "calls", existingCall.id), {
+        console.log("Cancelando chamada de escolar:", existingCall.id);
+        const callRef = doc(db, "calls", existingCall.id);
+        
+        await updateDoc(callRef, {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
-        }).catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: `calls/${existingCall.id}`,
-            operation: 'update',
-            requestResourceData: { status: "Cancelado" },
-          });
-          errorEmitter.emit('permission-error', permissionError);
         });
+        console.log("Sucesso Firestore: Escolar cancelado");
+        
         toast({ title: "Chamada Cancelada", description: `Escolar ${escolar.nome} removido do quadro.` });
       } else {
+        const payload = {
+          tipo: "escolar",
+          escolarId: escolar.id,
+          escolarNome: escolar.nome,
+          status: "Chamado",
+          dataHoraChamado: serverTimestamp(),
+          diaRef: diaRef,
+          chamadoPorUid: user?.uid,
+          chamadoPorEmail: user?.email,
+          turmasRelacionadas: relatedClasses,
+          alunosRelacionados: relatedStudents.map(s => s.nomeExibicao),
+          updatedAt: serverTimestamp(),
+        };
+
         if (existingCall) {
-          updateDoc(doc(db, "calls", existingCall.id), {
-            status: "Chamado",
-            dataHoraChamado: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            chamadoPorUid: user?.uid,
-            chamadoPorEmail: user?.email,
-            turmasRelacionadas: relatedClasses,
-            alunosRelacionados: relatedStudents.map(s => s.nomeExibicao),
-          }).catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-              path: `calls/${existingCall.id}`,
-              operation: 'update',
-              requestResourceData: { status: "Chamado" },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
+          console.log("Reativando chamada de escolar existente:", existingCall.id);
+          await updateDoc(doc(db, "calls", existingCall.id), payload);
+          console.log("Sucesso Firestore: Escolar re-chamado");
         } else {
-          addDoc(collection(db, "calls"), {
-            tipo: "escolar",
-            escolarId: escolar.id,
-            escolarNome: escolar.nome,
-            status: "Chamado",
-            dataHoraChamado: serverTimestamp(),
-            diaRef: diaRef,
-            chamadoPorUid: user?.uid,
-            chamadoPorEmail: user?.email,
-            turmasRelacionadas: relatedClasses,
-            alunosRelacionados: relatedStudents.map(s => s.nomeExibicao),
+          console.log("Criando nova chamada de escolar");
+          await addDoc(collection(db, "calls"), {
+            ...payload,
             createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          }).catch(async (error) => {
-            const permissionError = new FirestorePermissionError({
-              path: 'calls',
-              operation: 'create',
-            });
-            errorEmitter.emit('permission-error', permissionError);
           });
+          console.log("Sucesso Firestore: Novo chamado de escolar criado");
         }
+        
         toast({ title: "Escolar Chamado", description: `Transporte ${escolar.nome} enviado ao quadro.` });
       }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao processar chamada." });
+    } catch (error: any) {
+      console.error("FALHA na escrita de escolar:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro", 
+        description: error.message || "Falha ao processar chamada do escolar." 
+      });
     } finally {
       toggleProcessing(escolar.id, false);
     }
