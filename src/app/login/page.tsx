@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { GraduationCap, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
+  const auth = useAuth();
+  const db = useFirestore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,18 +23,24 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth || !db) return;
     setIsLoading(true);
   
     try {
+      console.log("[Login] Tentando autenticação para:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("[Login] Autenticado com sucesso. Buscando perfil no Firestore...");
+      
       const userRef = doc(db, "users", userCredential.user.uid);
       const userSnap = await getDoc(userRef);
   
       if (!userSnap.exists()) {
+        console.error("[Login] Perfil não encontrado no Firestore para UID:", userCredential.user.uid);
         throw new Error("ROLE_NOT_FOUND");
       }
   
       const userData = userSnap.data();
+      console.log("[Login] Perfil carregado. Role:", userData.role);
       
       toast({
         title: "Acesso Autorizado",
@@ -48,6 +56,7 @@ export default function LoginPage() {
       }
   
     } catch (error: any) {
+      console.error("[Login] Falha no login:", error);
       let title = "Erro de Acesso";
       let description = "Verifique suas credenciais.";
   
@@ -55,7 +64,7 @@ export default function LoginPage() {
         description = "E-mail ou senha inválidos.";
       } else if (error?.message === "ROLE_NOT_FOUND") {
         title = "Conta não configurada";
-        description = "Sua conta não possui permissões atribuídas.";
+        description = "Sua conta não possui permissões no Firestore.";
       }
   
       toast({

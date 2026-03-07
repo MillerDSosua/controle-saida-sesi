@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,16 +14,19 @@ import { Plus, Edit2, Trash2, Search, User, Bus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function StudentManagement() {
+  const db = useFirestore();
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [escolares, setEscolares] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "", escolarId: "" });
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!db) return;
     const unsubS = onSnapshot(query(collection(db, "students"), orderBy("nomeExibicao", "asc")), (s) => {
       setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
@@ -35,13 +37,19 @@ export function StudentManagement() {
       setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return () => { unsubS(); unsubC(); unsubE(); };
-  }, []);
+  }, [db]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedClass = classes.find(c => c.id === formData.turmaId);
-    if (!selectedClass) return;
+    if (!db || isSubmitting) return;
 
+    const selectedClass = classes.find(c => c.id === formData.turmaId);
+    if (!selectedClass) {
+      toast({ variant: "destructive", title: "Erro", description: "Selecione uma turma válida." });
+      return;
+    }
+
+    setIsSubmitting(true);
     const selectedEscolar = escolares.find(e => e.id === formData.escolarId);
 
     try {
@@ -55,28 +63,44 @@ export function StudentManagement() {
       };
 
       if (editingStudent) {
+        console.log("[StudentManagement] Atualizando aluno...", editingStudent.id, data);
         await updateDoc(doc(db, "students", editingStudent.id), data);
+        console.log("[StudentManagement] Sucesso updateDoc.");
         toast({ title: "Sucesso", description: "Aluno atualizado." });
       } else {
-        await addDoc(collection(db, "students"), {
+        const newPayload = {
           ...data,
           ativo: true,
           createdAt: serverTimestamp(),
-        });
+        };
+        console.log("[StudentManagement] Criando novo aluno...", newPayload);
+        const docRef = await addDoc(collection(db, "students"), newPayload);
+        console.log("[StudentManagement] Sucesso addDoc. ID:", docRef.id);
         toast({ title: "Sucesso", description: "Aluno cadastrado." });
       }
       setIsDialogOpen(false);
       setEditingStudent(null);
       setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar aluno." });
+    } catch (error: any) {
+      console.error("[StudentManagement] Erro ao salvar:", error);
+      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message || "Falha na comunicação com o banco de dados." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!db) return;
     if (confirm("Deseja excluir este aluno?")) {
-      await deleteDoc(doc(db, "students", id));
-      toast({ title: "Sucesso", description: "Aluno removido." });
+      try {
+        console.log("[StudentManagement] Excluindo aluno...", id);
+        await deleteDoc(doc(db, "students", id));
+        console.log("[StudentManagement] Sucesso deleteDoc.");
+        toast({ title: "Sucesso", description: "Aluno removido." });
+      } catch (error: any) {
+        console.error("[StudentManagement] Erro ao excluir:", error);
+        toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
+      }
     }
   };
 
@@ -119,12 +143,14 @@ export function StudentManagement() {
                     onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
                     placeholder="Ex: Miller Daniel"
                     required
+                    disabled={isSubmitting}
                     className="h-12 rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Turma Atual</Label>
                   <Select
+                    disabled={isSubmitting}
                     value={formData.turmaId}
                     onValueChange={(val) => setFormData({ ...formData, turmaId: val })}
                   >
@@ -139,6 +165,7 @@ export function StudentManagement() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Escolar (Opcional)</Label>
                   <Select
+                    disabled={isSubmitting}
                     value={formData.escolarId || "none"}
                     onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}
                   >
@@ -159,7 +186,9 @@ export function StudentManagement() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" className="w-full h-12 rounded-xl gradient-primary font-bold">Salvar Cadastro</Button>
+                <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary font-bold">
+                  {isSubmitting ? "Gravando..." : "Salvar Cadastro"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

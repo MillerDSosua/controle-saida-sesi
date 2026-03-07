@@ -2,65 +2,84 @@
 
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Edit2, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function ClassManagement() {
+  const db = useFirestore();
   const [classes, setClasses] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<any>(null);
   const [name, setName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, "classes"), orderBy("nome", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    }, (error) => console.error("[ClassManagement] Erro no listener:", error));
     return () => unsubscribe();
-  }, []);
+  }, [db]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
+      const payload = {
+        nome: name,
+        updatedAt: serverTimestamp(),
+      };
+
       if (editingClass) {
-        await updateDoc(doc(db, "classes", editingClass.id), {
-          nome: name,
-          updatedAt: serverTimestamp(),
-        });
+        console.log("[ClassManagement] Atualizando classe...", editingClass.id, payload);
+        await updateDoc(doc(db, "classes", editingClass.id), payload);
+        console.log("[ClassManagement] Sucesso updateDoc.");
         toast({ title: "Sucesso", description: "Turma atualizada com sucesso." });
       } else {
-        await addDoc(collection(db, "classes"), {
-          nome: name,
+        const newPayload = {
+          ...payload,
           ativa: true,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        };
+        console.log("[ClassManagement] Criando nova classe...", newPayload);
+        const docRef = await addDoc(collection(db, "classes"), newPayload);
+        console.log("[ClassManagement] Sucesso addDoc. ID:", docRef.id);
         toast({ title: "Sucesso", description: "Turma criada com sucesso." });
       }
       setIsDialogOpen(false);
       setEditingClass(null);
       setName("");
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível salvar a turma." });
+    } catch (error: any) {
+      console.error("[ClassManagement] Erro ao salvar:", error);
+      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message || "Não foi possível persistir os dados." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!db) return;
     if (confirm("Tem certeza que deseja excluir esta turma?")) {
       try {
+        console.log("[ClassManagement] Excluindo classe...", id);
         await deleteDoc(doc(db, "classes", id));
+        console.log("[ClassManagement] Sucesso deleteDoc.");
         toast({ title: "Sucesso", description: "Turma excluída." });
-      } catch (error) {
-        toast({ variant: "destructive", title: "Erro", description: "Erro ao excluir." });
+      } catch (error: any) {
+        console.error("[ClassManagement] Erro ao excluir:", error);
+        toast({ variant: "destructive", title: "Erro ao excluir", description: error.message || "Ocorreu uma falha no Firestore." });
       }
     }
   };
@@ -102,11 +121,14 @@ export function ClassManagement() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: 1º Ano A"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

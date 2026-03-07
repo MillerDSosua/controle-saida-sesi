@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, doc, serverTimestamp, where, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/context/auth-context";
+import { useAuth as useFirebaseUser } from "@/context/auth-context";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,11 +13,10 @@ import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle, Loader
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 export function CallManagement() {
-  const { user } = useAuth();
+  const { user } = useFirebaseUser();
+  const db = useFirestore();
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [calls, setCalls] = useState<Record<string, any>>({});
@@ -27,26 +25,19 @@ export function CallManagement() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const [diaRef, setDiaRef] = useState<string>("");
+  const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   useEffect(() => {
-    setDiaRef(format(new Date(), "yyyy-MM-dd"));
-  }, []);
+    if (!db || !user) return;
 
-  useEffect(() => {
-    if (!diaRef || !user) return;
-
-    console.log("Iniciando listeners no Operador para o dia:", diaRef);
+    console.log("[CallManagement] Iniciando listeners para o dia:", diaRef);
 
     const unsubS = onSnapshot(
       query(collection(db, "students"), orderBy("nomeExibicao", "asc")), 
       (s) => {
         setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
-      async (error) => {
-        console.error("Erro no listener de alunos:", error);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'students', operation: 'list' }));
-      }
+      (error) => console.error("[CallManagement] Erro no listener de alunos:", error)
     );
 
     const unsubC = onSnapshot(
@@ -54,10 +45,7 @@ export function CallManagement() {
       (s) => {
         setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
-      async (error) => {
-        console.error("Erro no listener de turmas:", error);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'list' }));
-      }
+      (error) => console.error("[CallManagement] Erro no listener de turmas:", error)
     );
 
     const qCalls = query(
@@ -68,25 +56,27 @@ export function CallManagement() {
     const unsubCalls = onSnapshot(
       qCalls, 
       (s) => {
-        console.log(`Recebidas ${s.docs.length} chamadas do dia ${diaRef}`);
         const callsMap: Record<string, any> = {};
-        s.docs.forEach(d => {
+        s.docs.forEach((d) => {
           const data = d.data();
-          // Manter o registro mais recente para cada estudante no dia
-          if (!callsMap[data.studentId] || data.updatedAt?.toMillis() > (callsMap[data.studentId].updatedAt?.toMillis() || 0)) {
-            callsMap[data.studentId] = { id: d.id, ...data };
+          const studentId = data.studentId;
+          if (!studentId) return;
+
+          const existing = callsMap[studentId];
+          const currentTimestamp = data.updatedAt?.toMillis() || 0;
+          const existingTimestamp = existing?.updatedAt?.toMillis() || 0;
+
+          if (!existing || currentTimestamp > existingTimestamp) {
+            callsMap[studentId] = { id: d.id, ...data };
           }
         });
         setCalls(callsMap);
       }, 
-      async (error) => {
-        console.error("Erro no listener de chamadas:", error);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'calls', operation: 'list' }));
-      }
+      (error) => console.error("[CallManagement] Erro no listener de chamadas:", error)
     );
 
     return () => { unsubS(); unsubC(); unsubCalls(); };
-  }, [diaRef, user]);
+  }, [db, diaRef, user]);
 
   const toggleProcessing = (id: string, isProcessing: boolean) => {
     setProcessingIds(prev => {
@@ -98,63 +88,54 @@ export function CallManagement() {
   };
 
   const handleToggleCall = async (student: any) => {
-    if (processingIds.has(student.id)) return;
+    if (!db || processingIds.has(student.id)) return;
     toggleProcessing(student.id, true);
 
-    console.log(">>> AÇÃO: Toggle Call para", student.nomeExibicao, "(ID:", student.id, ")");
     const existingCall = calls[student.id];
+    const isActive = existingCall && existingCall.status === "Chamado";
+
+    console.log(`[CallManagement] ${isActive ? "Cancelando" : "Criando"} chamada para:`, student.nomeExibicao);
 
     try {
-      if (existingCall && existingCall.status === "Chamado") {
-        console.log("Cancelando chamada ativa:", existingCall.id);
+      if (isActive) {
         const callRef = doc(db, "calls", existingCall.id);
         const payload = {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
         };
         
-        console.log("Gravando payload de cancelamento no Firestore...");
+        console.log("[CallManagement] Gravando updateDoc em 'calls'...", callRef.path, payload);
         await updateDoc(callRef, payload);
-        console.log("Sucesso Firestore: Chamada cancelada");
+        console.log("[CallManagement] Sucesso updateDoc.");
         
         toast({ 
           title: "Chamada Cancelada", 
           description: `${student.nomeExibicao} foi removido do quadro.` 
         });
       } else {
+        const payload = {
+          studentId: student.id,
+          nomeExibicao: student.nomeExibicao,
+          turmaId: student.turmaId,
+          turmaNome: student.turmaNome,
+          status: "Chamado",
+          dataHoraChamado: serverTimestamp(),
+          diaRef: diaRef,
+          chamadoPorUid: user?.uid,
+          chamadoPorEmail: user?.email,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
         if (existingCall) {
-          console.log("Reativando chamada existente:", existingCall.id);
           const callRef = doc(db, "calls", existingCall.id);
-          const payload = {
-            status: "Chamado",
-            dataHoraChamado: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            chamadoPorUid: user?.uid,
-            chamadoPorEmail: user?.email,
-          };
-          
-          console.log("Gravando payload de reativação no Firestore...");
+          console.log("[CallManagement] Reativando chamada existente via updateDoc...", callRef.path, payload);
           await updateDoc(callRef, payload);
-          console.log("Sucesso Firestore: Aluno re-chamado");
+          console.log("[CallManagement] Sucesso updateDoc (reativação).");
         } else {
-          console.log("Criando novo registro de chamada");
-          const payload = {
-            studentId: student.id,
-            nomeExibicao: student.nomeExibicao,
-            turmaId: student.turmaId,
-            turmaNome: student.turmaNome,
-            status: "Chamado",
-            dataHoraChamado: serverTimestamp(),
-            diaRef: diaRef,
-            chamadoPorUid: user?.uid,
-            chamadoPorEmail: user?.email,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          };
-          
-          console.log("Enviando novo documento para a collection 'calls'...");
-          await addDoc(collection(db, "calls"), payload);
-          console.log("Sucesso Firestore: Novo chamado criado");
+          console.log("[CallManagement] Criando nova chamada via addDoc em 'calls'...", payload);
+          const docRef = await addDoc(collection(db, "calls"), payload);
+          console.log("[CallManagement] Sucesso addDoc. ID:", docRef.id);
         }
         
         toast({ 
@@ -163,11 +144,11 @@ export function CallManagement() {
         });
       }
     } catch (error: any) {
-      console.error("FALHA CRÍTICA na escrita do Firestore:", error);
+      console.error("[CallManagement] FALHA na escrita do Firestore:", error);
       toast({ 
         variant: "destructive", 
-        title: "Erro de Conexão", 
-        description: error.message || "Não foi possível registrar a chamada. Verifique sua rede." 
+        title: "Erro ao registrar", 
+        description: error.message || "Não foi possível gravar no banco de dados." 
       });
     } finally {
       toggleProcessing(student.id, false);

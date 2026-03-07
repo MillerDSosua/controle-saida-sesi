@@ -3,8 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import { useRouter, usePathname } from "next/navigation";
+import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 
 interface AuthContextType {
   user: User | null;
@@ -19,26 +18,29 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const auth = useFirebaseAuth();
+  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<"operator" | "viewer" | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
+    if (!auth || !db) return;
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setRole(userData.role);
           } else {
+            console.warn("AuthContext: User document not found for UID:", firebaseUser.uid);
             setRole(null);
           }
         } catch (error) {
-          console.error("Error fetching user role:", error);
+          console.error("AuthContext: Error fetching user role:", error);
           setRole(null);
         }
       } else {
@@ -48,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth, db]);
 
   return (
     <AuthContext.Provider value={{ user, role, loading }}>
