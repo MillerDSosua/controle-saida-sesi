@@ -2,82 +2,71 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * CONTROLE DE SAÍDA SESI - SECURITY RULES
-     * 
-     * CORE PHILOSOPHY:
-     * This ruleset implements a Database-Based Access Control (DBAC) model where user roles
-     * ('operator', 'viewer') are stored in the '/users' collection.
-     */
-
-    // --- GLOBAL HELPER FUNCTIONS ---
+    // --- HELPER FUNCTIONS ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function hasRole(role) {
-      return isSignedIn() && getUserData().role == role;
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
     function isOperator() {
-      return hasRole('operator');
-    }
-
-    function isViewer() {
-      return hasRole('viewer');
+      return isSignedIn() && getRole() == 'operator';
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // --- COLLECTION RULES ---
+
     /**
-     * @description Rules for the User collection.
+     * Rules for the User collection.
+     * Users can read and manage their own profiles.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow list, delete: if false;
     }
 
     /**
-     * @description Rules for Classes. Managed by Operators, readable by any signed-in user.
+     * Rules for Classes.
+     * Readable by any authenticated user (for filters), manageable by Operators.
      */
     match /classes/{classId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isOperator();
     }
 
     /**
-     * @description Rules for Students. Managed exclusively by Operators.
+     * Rules for Students.
+     * Readable by any authenticated user (to display names), manageable by Operators.
      */
     match /students/{studentId} {
-      allow get, list: if isOperator();
+      allow read: if isSignedIn();
       allow write: if isOperator();
     }
 
     /**
-     * @description Rules for Escolares. Managed by Operators, readable by any signed-in user.
+     * Rules for Escolares.
+     * Readable by any authenticated user, manageable by Operators.
      */
     match /escolares/{escolarId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isOperator();
     }
 
     /**
-     * @description Rules for Call records. Supports real-time monitoring.
+     * Rules for Call records.
+     * Essential for the Real-time Viewer. Readable by everyone authenticated.
      */
     match /calls/{callId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isOperator();
     }
-
   }
 }

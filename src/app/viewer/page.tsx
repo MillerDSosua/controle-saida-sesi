@@ -26,7 +26,7 @@ export default function ViewerPage() {
     }
   }, [user, role, loading, router]);
 
-  // Queries memoizadas para evitar re-subscrições infinitas
+  // Query memoizada para as chamadas ativas de hoje
   const callsQuery = useMemoFirebase(() => {
     if (!firestore || !diaRef) return null;
     return query(
@@ -37,17 +37,14 @@ export default function ViewerPage() {
     );
   }, [firestore, diaRef]);
 
+  // Query memoizada para as turmas (filtros)
   const classesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "classes"), orderBy("nome", "asc"));
   }, [firestore]);
 
-  // Hooks de coleção centralizados
-  const { data: callsData, isLoading: callsLoading } = useCollection(callsQuery);
-  const { data: classesData, isLoading: classesLoading } = useCollection(classesQuery);
-
-  const calls = callsData || [];
-  const classes = classesData || [];
+  const { data: calls, isLoading: callsLoading } = useCollection(callsQuery);
+  const { data: classes, isLoading: classesLoading } = useCollection(classesQuery);
 
   if (loading || !user || role !== "viewer") {
     return (
@@ -57,13 +54,13 @@ export default function ViewerPage() {
     );
   }
 
-  const filteredCalls = calls.filter(call => {
+  // Filtro local baseado na seleção do usuário
+  const filteredCalls = (calls || []).filter(call => {
     if (selectedClass === "all") return true;
     if (call.tipo === "escolar") {
       return call.turmasRelacionadas?.includes(selectedClass);
-    } else {
-      return call.turmaId === selectedClass;
     }
+    return call.turmaId === selectedClass;
   });
 
   return (
@@ -87,30 +84,28 @@ export default function ViewerPage() {
               </div>
               <div>
                 <span className="block text-2xl font-bold text-primary leading-none">{filteredCalls.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados Ativos</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ativos</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger className="w-full sm:w-64 h-14 bg-white border-2 rounded-2xl text-lg font-bold shadow-sm focus:ring-primary/20 transition-all">
-                  <SelectValue placeholder="Filtrar por Turma" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl">
-                  <SelectItem value="all">Todas as Turmas</SelectItem>
-                  {classes.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="w-full sm:w-64 h-14 bg-white border-2 rounded-2xl text-lg font-bold shadow-sm focus:ring-primary/20 transition-all">
+                <SelectValue placeholder="Filtrar por Turma" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                <SelectItem value="all">Todas as Turmas</SelectItem>
+                {(classes || []).map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {(callsLoading || classesLoading) ? (
+          {callsLoading ? (
             <div className="col-span-full py-24 flex justify-center">
-               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
           ) : filteredCalls.length > 0 ? (
             filteredCalls.map((call) => (
@@ -138,26 +133,17 @@ export default function ViewerPage() {
                         "text-2xl font-black leading-tight tracking-tight line-clamp-2 min-h-[4rem] flex items-center justify-center",
                         call.tipo === 'escolar' ? "text-orange-700" : "text-primary"
                       )}>
-                        {call.nomeExibicao || call.escolarNome}
+                        {call.tipo === 'escolar' ? call.escolarNome : call.nomeExibicao}
                       </h3>
                       <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em]">
                         {call.tipo === 'escolar' ? "Transporte Escolar" : call.turmaNome}
                       </p>
                     </div>
 
-                    {call.tipo === 'escolar' && (
-                      <div className="w-full bg-orange-100/50 py-2 px-3 rounded-xl border border-orange-200">
-                         <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">Alunos Disponíveis</span>
-                         <div className="text-[11px] font-bold text-orange-800 truncate">
-                            {call.alunosRelacionados?.join(", ") || "Todos vinculados"}
-                         </div>
-                      </div>
-                    )}
-
                     <div className="w-full h-px bg-border"></div>
                     
                     <div className="space-y-0.5">
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Horário do Chamado</span>
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Chamado às</span>
                       <div className={cn(
                         "flex items-center justify-center gap-2 font-black tabular-nums text-4xl",
                         call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
@@ -189,9 +175,7 @@ export default function ViewerPage() {
             <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
             <span className="text-xs font-black text-primary/60 uppercase tracking-widest">Conexão SESI Ativa</span>
           </div>
-          <div className="hidden sm:block">
-            <span className="text-xs font-medium text-muted-foreground">© {new Date().getFullYear()} SESI - Saída Inteligente</span>
-          </div>
+          <span className="text-xs font-medium text-muted-foreground">© {new Date().getFullYear()} SESI</span>
         </div>
       </footer>
     </div>
