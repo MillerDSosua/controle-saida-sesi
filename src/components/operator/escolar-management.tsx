@@ -164,14 +164,15 @@ export function EscolarManagement() {
   const filteredEscolares = escolares.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-8 py-4">
+    <div className="space-y-8">
+      {/* Toolbar Normalizada */}
       <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input
               placeholder="Buscar escolares..."
-              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base"
+              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -181,7 +182,7 @@ export function EscolarManagement() {
             if (!open) { setEditingEscolar(null); setName(""); }
           }}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all">
+              <Button className="h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
                 <Plus size={18} /> Novo Escolar
               </Button>
             </DialogTrigger>
@@ -204,11 +205,26 @@ export function EscolarManagement() {
           </Dialog>
         </div>
 
+        {/* Toggle View Mode Normalizado */}
         <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
-          <Button variant="ghost" onClick={() => handleSetViewMode("grid")} className={cn("flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest", viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400")}>
+          <Button 
+            variant="ghost" 
+            onClick={() => handleSetViewMode("grid")} 
+            className={cn(
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
+            )}
+          >
             <LayoutGrid size={16} /> Quadro
           </Button>
-          <Button variant="ghost" onClick={() => handleSetViewMode("list")} className={cn("flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest", viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400")}>
+          <Button 
+            variant="ghost" 
+            onClick={() => handleSetViewMode("list")} 
+            className={cn(
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
+            )}
+          >
             <List size={16} /> Lista
           </Button>
         </div>
@@ -238,14 +254,14 @@ export function EscolarManagement() {
                       {isProcessing ? <Loader2 className="animate-spin" size={32} /> : <Bus size={40} />}
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[3rem]">{e.nome}</h3>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[3rem] text-center w-full">{e.nome}</h3>
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         <Badge variant="secondary" className="bg-orange-50 text-orange-600 text-[10px] font-black tracking-widest">ESCOLAR</Badge>
                         <Badge variant="outline" className="text-slate-400 text-[10px] font-black tracking-widest"><Users size={10} className="mr-1" /> {studentCount}</Badge>
                       </div>
                     </div>
                   </div>
-                  <Button variant={isCalled ? "destructive" : "default"} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg", !isCalled ? "gradient-primary" : "bg-red-500")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
+                  <Button variant={isCalled ? "destructive" : "default"} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-transform active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
                     {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar Saída"}
                   </Button>
                 </CardContent>
@@ -254,7 +270,7 @@ export function EscolarManagement() {
           })}
         </div>
       ) : (
-        <div className="space-y-3 max-w-5xl mx-auto">
+        <div className="space-y-3">
           {filteredEscolares.map((e) => {
             const currentCall = calls[e.id];
             const isCalled = currentCall && currentCall.status === "Chamado";
@@ -262,9 +278,9 @@ export function EscolarManagement() {
             const studentCount = students.filter(s => s.escolarId === e.id).length;
 
             return (
-              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border transition-all h-24 sm:h-28", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
+              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
+                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-colors", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
                     {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -284,7 +300,7 @@ export function EscolarManagement() {
                       <Trash2 size={16} className="text-slate-300" />
                     </Button>
                   </div>
-                  <Button variant={isCalled ? "destructive" : "default"} className={cn("h-11 w-[90px] sm:w-[130px] rounded-xl font-black text-[10px] tracking-widest shadow-sm", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
+                  <Button variant={isCalled ? "destructive" : "default"} className={cn("h-11 w-[90px] sm:w-[130px] rounded-xl font-black text-[10px] tracking-widest shadow-sm transition-transform active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
                     {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar"}
                   </Button>
                 </div>

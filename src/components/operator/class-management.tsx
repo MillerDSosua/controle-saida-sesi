@@ -44,7 +44,6 @@ export function ClassManagement() {
       };
 
       if (editingClass) {
-        console.log("[ClassManagement] Atualizando classe...", editingClass.id, payload);
         await updateDoc(doc(db, "classes", editingClass.id), payload);
         toast({ title: "Sucesso", description: "Turma atualizada com sucesso." });
       } else {
@@ -53,7 +52,6 @@ export function ClassManagement() {
           ativa: true,
           createdAt: serverTimestamp(),
         };
-        console.log("[ClassManagement] Criando nova classe...", newPayload);
         await addDoc(collection(db, "classes"), newPayload);
         toast({ title: "Sucesso", description: "Turma criada com sucesso." });
       }
@@ -61,8 +59,7 @@ export function ClassManagement() {
       setEditingClass(null);
       setName("");
     } catch (error: any) {
-      console.error("[ClassManagement] Erro ao salvar:", error);
-      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message || "Não foi possível persistir os dados." });
+      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
     } finally {
       setIsSubmitting(false);
     }
@@ -70,48 +67,27 @@ export function ClassManagement() {
 
   const handleDelete = async (id: string, className: string) => {
     if (!db || isDeletingId) return;
-    
-    console.log(`[ClassManagement] Tentando excluir turma: ${className} (${id})`);
-
-    if (!confirm(`Tem certeza que deseja excluir a turma "${className}"?`)) {
-      return;
-    }
+    if (!confirm(`Tem certeza que deseja excluir a turma "${className}"?`)) return;
 
     setIsDeletingId(id);
-
     try {
-      // Validação: Verificar se existem alunos vinculados a esta turma
-      console.log("[ClassManagement] Verificando dependências de alunos...");
-      const studentsQuery = query(
-        collection(db, "students"), 
-        where("turmaId", "==", id),
-        limit(1)
-      );
+      const studentsQuery = query(collection(db, "students"), where("turmaId", "==", id), limit(1));
       const studentsSnapshot = await getDocs(studentsQuery);
 
       if (!studentsSnapshot.empty) {
-        console.warn("[ClassManagement] Exclusão abortada: Existem alunos vinculados.");
         toast({
           variant: "destructive",
           title: "Não é possível excluir",
-          description: "Existem alunos matriculados nesta turma. Remova ou transfira os alunos antes de excluir a turma.",
+          description: "Existem alunos matriculados nesta turma.",
         });
         setIsDeletingId(null);
         return;
       }
 
-      console.log("[ClassManagement] Nenhuma dependência encontrada. Excluindo documento...");
       await deleteDoc(doc(db, "classes", id));
-      
-      console.log("[ClassManagement] Exclusão realizada com sucesso.");
       toast({ title: "Sucesso", description: "Turma excluída com sucesso." });
     } catch (error: any) {
-      console.error("[ClassManagement] Erro crítico na exclusão:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro ao excluir", 
-        description: error.message || "Ocorreu uma falha no servidor ao tentar excluir." 
-      });
+      toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
     } finally {
       setIsDeletingId(null);
     }
@@ -120,13 +96,14 @@ export function ClassManagement() {
   const filteredClasses = classes.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+    <div className="space-y-8">
+      {/* Toolbar Normalizada */}
+      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <Input
             placeholder="Buscar turmas..."
-            className="pl-10"
+            className="pl-12 h-14 bg-slate-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -136,31 +113,32 @@ export function ClassManagement() {
           if (!open) { setEditingClass(null); setName(""); }
         }}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto gap-2">
+            <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
               <Plus size={18} /> Nova Turma
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <form onSubmit={handleSave}>
+          <DialogContent className="rounded-[32px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+            <div className="bg-primary px-8 py-10 text-white">
               <DialogHeader>
-                <DialogTitle>{editingClass ? "Editar Turma" : "Nova Turma"}</DialogTitle>
+                <DialogTitle className="text-2xl font-black tracking-tight">{editingClass ? "Editar Turma" : "Nova Turma"}</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="className">Nome da Turma</Label>
-                  <Input
-                    id="className"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex: 1º Ano A"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
+            </div>
+            <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
+              <div className="space-y-2">
+                <Label htmlFor="className" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome da Turma</Label>
+                <Input
+                  id="className"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: 1º Ano A"
+                  required
+                  disabled={isSubmitting}
+                  className="h-12 rounded-xl bg-slate-50 border-none text-base"
+                />
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Salvando..." : "Salvar"}
+                <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black">
+                  {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Turma"}
                 </Button>
               </DialogFooter>
             </form>
@@ -168,37 +146,37 @@ export function ClassManagement() {
         </Dialog>
       </div>
 
-      <Card className="premium-card">
+      <Card className="premium-card overflow-hidden border-none shadow-sm bg-white">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="py-5 pl-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome</TableHead>
+                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredClasses.length > 0 ? (
                 filteredClasses.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => {
+                  <TableRow key={c.id} className="hover:bg-slate-50/30">
+                    <TableCell className="py-4 pl-8 font-bold text-slate-900">{c.nome}</TableCell>
+                    <TableCell className="text-right pr-8">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-white hover:shadow-sm" onClick={() => {
                           setEditingClass(c);
                           setName(c.nome);
                           setIsDialogOpen(true);
                         }}>
-                          <Edit2 size={16} />
+                          <Edit2 size={16} className="text-slate-400 hover:text-primary" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-destructive" 
+                          className="h-9 w-9 rounded-lg hover:bg-red-50" 
                           disabled={isDeletingId === c.id}
                           onClick={() => handleDelete(c.id, c.nome)}
                         >
-                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
+                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500" />}
                         </Button>
                       </div>
                     </TableCell>
@@ -206,7 +184,7 @@ export function ClassManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={2} className="text-center py-20 text-slate-400 font-medium italic">
                     Nenhuma turma encontrada.
                   </TableCell>
                 </TableRow>

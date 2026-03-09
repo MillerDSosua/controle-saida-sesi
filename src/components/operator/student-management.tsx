@@ -220,41 +220,43 @@ export function StudentManagement() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Toolbar Normalizada */}
       <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="relative w-full xl:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <Input
             placeholder="Buscar alunos..."
-            className="pl-12 h-12 rounded-2xl bg-slate-50 border-none text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
+            className="pl-12 h-14 rounded-2xl bg-slate-50 border-none text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
-          <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Ações de Importação/Exportação */}
+          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 h-14 bg-slate-100/30 px-2 rounded-2xl border border-slate-100/50">
             <Button 
-              variant="outline" 
-              className="flex-1 sm:flex-none h-12 rounded-xl border-slate-200 px-4 font-bold hover:bg-slate-50 gap-2 transition-all active:scale-95"
+              variant="ghost" 
+              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-bold hover:bg-white hover:shadow-sm text-slate-600 gap-2 transition-all active:scale-95"
               onClick={handleDownloadModel}
             >
-              <Download size={18} className="text-slate-500" />
-              <span className="text-xs uppercase tracking-wider">Modelo</span>
+              <Download size={16} />
+              <span className="text-[10px] uppercase tracking-wider">Modelo</span>
             </Button>
             
             <Button 
-              variant="outline" 
-              className="flex-1 sm:flex-none h-12 rounded-xl border-slate-200 px-4 font-bold hover:bg-slate-50 gap-2 transition-all active:scale-95"
+              variant="ghost" 
+              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-bold hover:bg-white hover:shadow-sm text-slate-600 gap-2 transition-all active:scale-95"
               onClick={handleExport}
             >
-              <FileDown size={18} className="text-slate-500" />
-              <span className="text-xs uppercase tracking-wider">Exportar</span>
+              <FileDown size={16} />
+              <span className="text-[10px] uppercase tracking-wider">Exportar</span>
             </Button>
 
             <Button 
-              variant="secondary" 
-              className="flex-1 sm:flex-none h-12 rounded-xl bg-primary/5 text-primary border-none hover:bg-primary/10 px-4 font-bold gap-2 transition-all active:scale-95"
+              variant="ghost" 
+              className="flex-1 sm:flex-none h-10 rounded-xl bg-white shadow-sm px-4 font-bold text-primary gap-2 transition-all active:scale-95"
               onClick={() => {
                 setImportStep("intro");
                 setImportFile(null);
@@ -262,17 +264,18 @@ export function StudentManagement() {
                 setIsImportModalOpen(true);
               }}
             >
-              <FileUp size={18} />
-              <span className="text-xs uppercase tracking-wider">Importar</span>
+              <FileUp size={16} />
+              <span className="text-[10px] uppercase tracking-wider">Importar</span>
             </Button>
           </div>
 
+          {/* Botão Novo Aluno */}
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto h-12 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
+              <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
                 <Plus size={20} /> Novo Aluno
               </Button>
             </DialogTrigger>
@@ -380,7 +383,7 @@ export function StudentManagement() {
                     <p className="text-2xl font-black text-red-600">{parsedRows.filter(r => !r.isValid).length}</p>
                   </div>
                 </div>
-                <div className="bg-white rounded-2xl border overflow-hidden">
+                <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
                   <Table>
                     <TableHeader className="bg-slate-50">
                       <TableRow>
@@ -393,9 +396,9 @@ export function StudentManagement() {
                       {parsedRows.map((row, i) => (
                         <TableRow key={i}>
                           <TableCell className="text-sm font-bold">{row.nomeExibicao}</TableCell>
-                          <TableCell className="text-sm">{row.turmaNome}</TableCell>
+                          <TableCell className="text-sm font-medium">{row.turmaNome}</TableCell>
                           <TableCell>
-                            {row.isValid ? <Badge className="bg-green-500 text-[8px]">OK</Badge> : <Badge variant="destructive" className="text-[8px]">{row.error}</Badge>}
+                            {row.isValid ? <Badge className="bg-green-500 text-[8px] font-black">OK</Badge> : <Badge variant="destructive" className="text-[8px] font-black">{row.error}</Badge>}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -415,10 +418,10 @@ export function StudentManagement() {
             )}
           </div>
           <div className="bg-white border-t p-6 flex justify-between items-center shrink-0">
-            <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button variant="ghost" className="font-bold" onClick={() => setIsImportModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
             <div className="flex gap-3">
-              {importStep === "intro" && <Button disabled={!importFile || isValidating} onClick={validateImport} className="h-12 rounded-xl gradient-primary">{isValidating ? <Loader2 className="animate-spin" /> : "Validar"}</Button>}
-              {importStep === "preview" && <Button disabled={isSubmitting || !parsedRows.some(r => r.isValid)} onClick={executeImport} className="h-12 rounded-xl gradient-primary">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Importação"}</Button>}
+              {importStep === "intro" && <Button disabled={!importFile || isValidating} onClick={validateImport} className="h-12 rounded-xl gradient-primary px-8 font-black">{isValidating ? <Loader2 className="animate-spin" /> : "Validar"}</Button>}
+              {importStep === "preview" && <Button disabled={isSubmitting || !parsedRows.some(r => r.isValid)} onClick={executeImport} className="h-12 rounded-xl gradient-primary px-8 font-black">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Importação"}</Button>}
             </div>
           </div>
         </DialogContent>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -32,47 +31,47 @@ export default function OperatorPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader title="Controle de Saída SESI" />
 
-      <main className="flex-1 container mx-auto px-4 py-6 sm:px-6">
-        <Tabs defaultValue="calls" className="space-y-6" onValueChange={setActiveTab}>
-          <div className="flex items-center justify-center sm:justify-start overflow-x-auto pb-2">
-            <TabsList className="flex w-full sm:w-auto apple-blur p-1 h-12">
-              <TabsTrigger value="calls" className="flex items-center gap-2 px-4 sm:px-6">
-                <PhoneOutgoing size={16} />
-                <span className="hidden sm:inline">Chamadas</span>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <Tabs defaultValue="calls" className="space-y-8" onValueChange={setActiveTab}>
+          <div className="flex items-center justify-center sm:justify-start overflow-x-auto pb-1 scrollbar-hide">
+            <TabsList className="flex w-full sm:w-auto apple-blur p-1.5 h-14 rounded-2xl border border-slate-200 shadow-sm bg-white/50">
+              <TabsTrigger value="calls" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
+                <PhoneOutgoing size={18} />
+                <span className="text-sm">Chamadas</span>
               </TabsTrigger>
-              <TabsTrigger value="escolares" className="flex items-center gap-2 px-4 sm:px-6">
-                <Bus size={16} />
-                <span className="hidden sm:inline">Escolares</span>
+              <TabsTrigger value="escolares" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
+                <Bus size={18} />
+                <span className="text-sm">Escolares</span>
               </TabsTrigger>
-              <TabsTrigger value="students" className="flex items-center gap-2 px-4 sm:px-6">
-                <GraduationCap size={16} />
-                <span className="hidden sm:inline">Alunos</span>
+              <TabsTrigger value="students" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
+                <GraduationCap size={18} />
+                <span className="text-sm">Alunos</span>
               </TabsTrigger>
-              <TabsTrigger value="classes" className="flex items-center gap-2 px-4 sm:px-6">
-                <Users size={16} />
-                <span className="hidden sm:inline">Turmas</span>
+              <TabsTrigger value="classes" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
+                <Users size={18} />
+                <span className="text-sm">Turmas</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2 px-4 sm:px-6">
-                <History size={16} />
-                <span className="hidden sm:inline">Histórico</span>
+              <TabsTrigger value="history" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
+                <History size={18} />
+                <span className="text-sm">Histórico</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <TabsContent value="calls">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <TabsContent value="calls" className="mt-0 outline-none">
               <CallManagement />
             </TabsContent>
-            <TabsContent value="escolares">
+            <TabsContent value="escolares" className="mt-0 outline-none">
               <EscolarManagement />
             </TabsContent>
-            <TabsContent value="students">
+            <TabsContent value="students" className="mt-0 outline-none">
               <StudentManagement />
             </TabsContent>
-            <TabsContent value="classes">
+            <TabsContent value="classes" className="mt-0 outline-none">
               <ClassManagement />
             </TabsContent>
-            <TabsContent value="history">
+            <TabsContent value="history" className="mt-0 outline-none">
               <HistoryManagement />
             </TabsContent>
           </div>
