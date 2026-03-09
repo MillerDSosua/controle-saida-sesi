@@ -224,7 +224,7 @@ export default function ViewerPage() {
                       </div>
 
                       <div className="w-full pt-4 border-t border-slate-50">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1">Horário de Saída</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1">Horário de Saída</span>
                         <div className={cn(
                           "text-4xl font-black tabular-nums tracking-tighter",
                           call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
@@ -306,7 +306,7 @@ export default function ViewerPage() {
             </div>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Conexão Sesi Inteligente Ativa</span>
           </div>
-          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">© {new Date().getFullYear()} SESI - FIEMG</span>
+          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">© CRIADO POR MILLER DANIEL</span>
         </div>
       </footer>
     </div>
