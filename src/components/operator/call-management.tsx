@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle, Loader2, LayoutGrid, List, ArrowRight } from "lucide-react";
+import { Search, PhoneOutgoing, XCircle, User, CheckCircle2, AlertCircle, Loader2, LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,19 @@ export function CallManagement() {
   const { toast } = useToast();
 
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
+
+  // Persistência da visualização
+  useEffect(() => {
+    const savedMode = localStorage.getItem("operatorViewMode");
+    if (savedMode === "grid" || savedMode === "list") {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  const handleSetViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("operatorViewMode", mode);
+  };
 
   useEffect(() => {
     if (!db || !user) return;
@@ -98,6 +111,7 @@ export function CallManagement() {
 
     try {
       if (isActive) {
+        console.log("[CallManagement] Cancelando chamada:", existingCall.id);
         const callRef = doc(db, "calls", existingCall.id);
         const payload = {
           status: "Cancelado",
@@ -121,6 +135,8 @@ export function CallManagement() {
           updatedAt: serverTimestamp(),
         };
 
+        console.log("[CallManagement] Criando/Atualizando chamada para:", student.nomeExibicao, payload);
+
         if (existingCall) {
           await updateDoc(doc(db, "calls", existingCall.id), payload);
         } else {
@@ -129,6 +145,7 @@ export function CallManagement() {
         toast({ title: "Chamado Realizado", description: `${student.nomeExibicao} foi enviado ao quadro.` });
       }
     } catch (error: any) {
+      console.error("[CallManagement] Erro crítico na ação de chamada:", error);
       toast({ variant: "destructive", title: "Erro ao registrar", description: error.message });
     } finally {
       toggleProcessing(student.id, false);
@@ -145,52 +162,52 @@ export function CallManagement() {
 
   return (
     <div className="space-y-8 py-4">
-      {/* Toolbar Premium */}
-      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between bg-white p-6 rounded-[24px] shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:max-w-3xl">
+      {/* Toolbar Premium Reorganizada */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input
               placeholder="Buscar aluno por nome..."
-              className="pl-12 h-14 bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/10 rounded-2xl text-lg transition-all"
+              className="pl-12 h-14 bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/10 rounded-2xl text-base transition-all placeholder:text-slate-400"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="w-full md:w-64">
+          <div className="w-full sm:w-64">
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-lg font-medium">
+              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-semibold text-slate-700">
                 <SelectValue placeholder="Todas as Turmas" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-none shadow-xl">
-                <SelectItem value="all" className="h-12 rounded-xl">Todas as turmas</SelectItem>
-                {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-12 rounded-xl">{c.nome}</SelectItem>)}
+                <SelectItem value="all" className="h-11 rounded-xl">Todas as turmas</SelectItem>
+                {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-xl">{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="flex items-center bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full xl:w-auto">
+        <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
           <Button
             variant="ghost"
-            onClick={() => setViewMode("grid")}
+            onClick={() => handleSetViewMode("grid")}
             className={cn(
-              "flex-1 xl:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold",
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest",
               viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <LayoutGrid size={18} />
+            <LayoutGrid size={16} />
             <span>Quadro</span>
           </Button>
           <Button
             variant="ghost"
-            onClick={() => setViewMode("list")}
+            onClick={() => handleSetViewMode("list")}
             className={cn(
-              "flex-1 xl:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold",
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest",
               viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <List size={18} />
+            <List size={16} />
             <span>Lista</span>
           </Button>
         </div>
@@ -275,49 +292,48 @@ export function CallManagement() {
                 <div 
                   key={s.id}
                   className={cn(
-                    "flex items-center justify-between p-4 bg-white rounded-[20px] border border-slate-100 shadow-sm hover:shadow-md transition-all group",
-                    isCalled && "border-l-4 border-l-green-500 bg-green-50/5"
+                    "flex items-center justify-between p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all group h-24",
+                    isCalled && "border-l-4 border-l-green-500 bg-green-50/10"
                   )}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-5 flex-1 min-w-0">
                     <div className={cn(
-                      "h-14 w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105",
+                      "h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
                       isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={28} />}
                     </div>
-                    <div>
-                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                    <div className="min-w-0">
+                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
                         {s.nomeExibicao}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.turmaNome}</span>
-                        {isCalled && <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />}
+                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6 shrink-0">
                     {isCalled && (
-                      <div className="text-right hidden sm:block mr-4">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Chamado às</span>
-                        <span className="text-sm font-black text-slate-900">
+                      <div className="text-right hidden sm:block">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Chamado às</span>
+                        <span className="text-sm font-black text-slate-900 tabular-nums">
                           {currentCall.dataHoraChamado ? format(currentCall.dataHoraChamado.toDate(), "HH:mm") : "--:--"}
                         </span>
                       </div>
                     )}
                     <Button
                       variant={isCalled ? "destructive" : "default"}
-                      size="sm"
                       className={cn(
-                        "h-12 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95",
-                        !isCalled && "gradient-primary shadow-lg shadow-primary/10",
-                        isCalled && "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100"
+                        "h-12 w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
+                        !isCalled && "gradient-primary text-white",
+                        isCalled && "bg-red-500 hover:bg-red-600 text-white"
                       )}
                       disabled={isProcessing}
                       onClick={() => handleToggleCall(s)}
                     >
-                      {isCalled ? "Cancelar" : "Chamar"}
+                      {isProcessing ? <Loader2 className="animate-spin" size={16} /> : isCalled ? "Cancelar" : "Chamar"}
                     </Button>
                   </div>
                 </div>

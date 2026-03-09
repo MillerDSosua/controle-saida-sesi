@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, CheckCircle2, Loader2, Users, AlertCircle, LayoutGrid, List } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, Loader2, Users, AlertCircle, LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,19 @@ export function EscolarManagement() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
+
+  // Persistência da visualização
+  useEffect(() => {
+    const savedMode = localStorage.getItem("operatorViewMode");
+    if (savedMode === "grid" || savedMode === "list") {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  const handleSetViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("operatorViewMode", mode);
+  };
 
   useEffect(() => {
     if (!user || !db) return;
@@ -82,12 +95,14 @@ export function EscolarManagement() {
     if (!db) return;
     try {
       if (editingEscolar) {
+        console.log("[EscolarManagement] Atualizando escolar:", editingEscolar.id, { nome: name });
         await updateDoc(doc(db, "escolares", editingEscolar.id), {
           nome: name,
           updatedAt: serverTimestamp(),
         });
         toast({ title: "Sucesso", description: "Escolar atualizado com sucesso." });
       } else {
+        console.log("[EscolarManagement] Criando novo escolar:", { nome: name });
         await addDoc(collection(db, "escolares"), {
           nome: name,
           ativo: true,
@@ -100,6 +115,7 @@ export function EscolarManagement() {
       setEditingEscolar(null);
       setName("");
     } catch (error: any) {
+      console.error("[EscolarManagement] Erro ao salvar escolar:", error);
       toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar escolar." });
     }
   };
@@ -109,17 +125,22 @@ export function EscolarManagement() {
     if (!confirm(`Tem certeza que deseja excluir o transporte "${escolarName}"?`)) return;
 
     setIsDeletingId(id);
+    console.log(`[EscolarManagement] Tentando excluir escolar: ${escolarName} (${id})`);
+    
     try {
       const studentsQuery = query(collection(db, "students"), where("escolarId", "==", id), limit(1));
       const studentsSnapshot = await getDocs(studentsQuery);
       if (!studentsSnapshot.empty) {
-        toast({ variant: "destructive", title: "Não é possível excluir", description: "Existem alunos vinculados a este transporte." });
+        console.warn("[EscolarManagement] Bloqueado: Existem alunos vinculados.");
+        toast({ variant: "destructive", title: "Não é possível excluir", description: "Existem alunos vinculados a este transporte. Desvincule-os antes de excluir." });
         setIsDeletingId(null);
         return;
       }
       await deleteDoc(doc(db, "escolares", id));
+      console.log("[EscolarManagement] Escolar excluído com sucesso.");
       toast({ title: "Sucesso", description: "Transporte escolar removido com sucesso." });
     } catch (error: any) {
+      console.error("[EscolarManagement] Erro ao excluir escolar:", error);
       toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
     } finally {
       setIsDeletingId(null);
@@ -145,6 +166,7 @@ export function EscolarManagement() {
 
     try {
       if (existingCall && existingCall.status === "Chamado") {
+        console.log("[EscolarManagement] Cancelando chamada de escolar:", existingCall.id);
         await updateDoc(doc(db, "calls", existingCall.id), {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
@@ -165,6 +187,8 @@ export function EscolarManagement() {
           updatedAt: serverTimestamp(),
         };
 
+        console.log("[EscolarManagement] Criando/Atualizando chamada de escolar:", escolar.nome, payload);
+
         if (existingCall) {
           await updateDoc(doc(db, "calls", existingCall.id), payload);
         } else {
@@ -173,6 +197,7 @@ export function EscolarManagement() {
         toast({ title: "Escolar Chamado", description: `Transporte ${escolar.nome} enviado ao quadro.` });
       }
     } catch (error: any) {
+      console.error("[EscolarManagement] Erro crítico na ação de chamada de escolar:", error);
       toast({ variant: "destructive", title: "Erro", description: error.message });
     } finally {
       toggleProcessing(escolar.id, false);
@@ -183,14 +208,14 @@ export function EscolarManagement() {
 
   return (
     <div className="space-y-8 py-4">
-      {/* Toolbar Premium */}
-      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between bg-white p-6 rounded-[24px] shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:max-w-2xl">
+      {/* Toolbar Premium Reorganizada */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input
               placeholder="Buscar escolares..."
-              className="pl-12 h-14 bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/10 rounded-2xl text-lg transition-all"
+              className="pl-12 h-14 bg-slate-50 border-none focus-visible:ring-2 focus-visible:ring-primary/10 rounded-2xl text-base transition-all placeholder:text-slate-400"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -200,8 +225,8 @@ export function EscolarManagement() {
             if (!open) { setEditingEscolar(null); setName(""); }
           }}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl gradient-primary shadow-xl shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
-                <Plus size={20} /> Novo Escolar
+              <Button className="h-14 rounded-2xl gradient-primary shadow-xl shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                <Plus size={18} /> Novo Escolar
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[32px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
@@ -234,27 +259,27 @@ export function EscolarManagement() {
           </Dialog>
         </div>
 
-        <div className="flex items-center bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full xl:w-auto">
+        <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
           <Button
             variant="ghost"
-            onClick={() => setViewMode("grid")}
+            onClick={() => handleSetViewMode("grid")}
             className={cn(
-              "flex-1 xl:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold",
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest",
               viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <LayoutGrid size={18} />
+            <LayoutGrid size={16} />
             <span>Quadro</span>
           </Button>
           <Button
             variant="ghost"
-            onClick={() => setViewMode("list")}
+            onClick={() => handleSetViewMode("list")}
             className={cn(
-              "flex-1 xl:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold",
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-xs uppercase tracking-widest",
               viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <List size={18} />
+            <List size={16} />
             <span>Lista</span>
           </Button>
         </div>
@@ -367,31 +392,31 @@ export function EscolarManagement() {
                 <div 
                   key={e.id}
                   className={cn(
-                    "flex items-center justify-between p-4 bg-white rounded-[20px] border border-slate-100 shadow-sm hover:shadow-md transition-all group",
-                    isCalled && "border-l-4 border-l-green-500 bg-green-50/5"
+                    "flex items-center justify-between p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all group h-24",
+                    isCalled && "border-l-4 border-l-green-500 bg-green-50/10"
                   )}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-5 flex-1 min-w-0">
                     <div className={cn(
-                      "h-14 w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105",
+                      "h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
                       isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
                     </div>
-                    <div>
-                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                    <div className="min-w-0">
+                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
                         {e.nome}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest">Escolar</span>
                         <div className="h-1 w-1 rounded-full bg-slate-200" />
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{studentCount} Alunos</span>
-                        {isCalled && <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />}
+                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => {
                         setEditingEscolar(e);
@@ -407,16 +432,15 @@ export function EscolarManagement() {
 
                     <Button
                       variant={isCalled ? "destructive" : "default"}
-                      size="sm"
                       className={cn(
-                        "h-12 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95",
-                        !isCalled && "gradient-primary shadow-lg shadow-primary/10",
-                        isCalled && "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100"
+                        "h-12 w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
+                        !isCalled && "gradient-primary text-white",
+                        isCalled && "bg-red-500 hover:bg-red-600 text-white"
                       )}
                       disabled={isProcessing}
                       onClick={() => handleToggleCall(e)}
                     >
-                      {isCalled ? "Cancelar" : "Chamar"}
+                      {isProcessing ? <Loader2 className="animate-spin" size={16} /> : isCalled ? "Cancelar" : "Chamar"}
                     </Button>
                   </div>
                 </div>
