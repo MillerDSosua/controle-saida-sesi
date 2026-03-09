@@ -296,25 +296,25 @@ export function CallManagement() {
                     isCalled && "border-l-4 border-l-green-500 bg-green-50/10"
                   )}
                 >
-                  <div className="flex items-center gap-5 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                     <div className={cn(
-                      "h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                      "h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
                       isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={28} />}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
+                    <div className="min-w-0 flex-1 pr-2 sm:pr-4">
+                      <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
                         {s.nomeExibicao}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.turmaNome}</span>
-                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{s.turmaNome}</span>
+                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-6 shrink-0">
                     {isCalled && (
                       <div className="text-right hidden sm:block">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Chamado às</span>
@@ -326,7 +326,7 @@ export function CallManagement() {
                     <Button
                       variant={isCalled ? "destructive" : "default"}
                       className={cn(
-                        "h-12 w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
+                        "h-12 w-[90px] sm:w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
                         !isCalled && "gradient-primary text-white",
                         isCalled && "bg-red-500 hover:bg-red-600 text-white"
                       )}

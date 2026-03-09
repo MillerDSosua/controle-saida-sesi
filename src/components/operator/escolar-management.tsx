@@ -396,36 +396,36 @@ export function EscolarManagement() {
                     isCalled && "border-l-4 border-l-green-500 bg-green-50/10"
                   )}
                 >
-                  <div className="flex items-center gap-5 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                     <div className={cn(
-                      "h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                      "h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
                       isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300"
                     )}>
                       {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
+                    <div className="min-w-0 flex-1 pr-2 sm:pr-4">
+                      <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight truncate">
                         {e.nome}
                       </h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest">Escolar</span>
-                        <div className="h-1 w-1 rounded-full bg-slate-200" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{studentCount} Alunos</span>
-                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                      <div className="flex items-center gap-1 sm:gap-2 mt-1">
+                        <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest shrink-0">Escolar</span>
+                        <div className="h-1 w-1 rounded-full bg-slate-200 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{studentCount} Alunos</span>
+                        {isCalled && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => {
+                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-1 sm:mr-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl" onClick={() => {
                         setEditingEscolar(e);
                         setName(e.nome);
                         setIsDialogOpen(true);
                       }}>
                         <Edit2 size={16} className="text-primary" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => handleDelete(e.id, e.nome)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl" onClick={() => handleDelete(e.id, e.nome)}>
                         <Trash2 size={16} className="text-destructive" />
                       </Button>
                     </div>
@@ -433,7 +433,7 @@ export function EscolarManagement() {
                     <Button
                       variant={isCalled ? "destructive" : "default"}
                       className={cn(
-                        "h-12 w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
+                        "h-12 w-[90px] sm:w-[140px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm",
                         !isCalled && "gradient-primary text-white",
                         isCalled && "bg-red-500 hover:bg-red-600 text-white"
                       )}
