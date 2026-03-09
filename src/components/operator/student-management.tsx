@@ -41,6 +41,7 @@ export function StudentManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "", escolarId: "" });
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   
   // Estados para Importação
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -87,9 +88,11 @@ export function StudentManagement() {
       };
 
       if (editingStudent) {
+        console.log("[StudentManagement] Atualizando aluno...", editingStudent.id);
         await updateDoc(doc(db, "students", editingStudent.id), data);
         toast({ title: "Sucesso", description: "Aluno atualizado." });
       } else {
+        console.log("[StudentManagement] Criando novo aluno...");
         await addDoc(collection(db, "students"), {
           ...data,
           ativo: true,
@@ -101,21 +104,37 @@ export function StudentManagement() {
       setEditingStudent(null);
       setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" });
     } catch (error: any) {
+      console.error("[StudentManagement] Erro ao salvar:", error);
       toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!db) return;
-    if (confirm("Deseja excluir este aluno?")) {
-      try {
-        await deleteDoc(doc(db, "students", id));
-        toast({ title: "Sucesso", description: "Aluno removido." });
-      } catch (error: any) {
-        toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
-      }
+  const handleDelete = async (id: string, name: string) => {
+    if (!db || isDeletingId) return;
+    
+    console.log(`[StudentManagement] Tentando excluir aluno: ${name} (${id})`);
+
+    if (!confirm(`Tem certeza que deseja excluir o aluno "${name}"?`)) {
+      return;
+    }
+
+    setIsDeletingId(id);
+
+    try {
+      await deleteDoc(doc(db, "students", id));
+      console.log("[StudentManagement] Aluno excluído com sucesso.");
+      toast({ title: "Sucesso", description: "Aluno removido com sucesso." });
+    } catch (error: any) {
+      console.error("[StudentManagement] Erro na exclusão:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro ao excluir", 
+        description: error.message || "Ocorreu uma falha ao tentar excluir o aluno do banco de dados." 
+      });
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -657,8 +676,14 @@ export function StudentManagement() {
                         }}>
                           <Edit2 size={18} className="text-slate-400 hover:text-primary transition-colors" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-red-50 hover:shadow-md transition-all group/del" onClick={() => handleDelete(s.id)}>
-                          <Trash2 size={18} className="text-slate-300 group-hover/del:text-red-500 transition-colors" />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-10 w-10 rounded-xl hover:bg-red-50 hover:shadow-md transition-all group/del" 
+                          disabled={isDeletingId === s.id}
+                          onClick={() => handleDelete(s.id, s.nomeExibicao)}
+                        >
+                          {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={18} className="text-slate-300 group-hover/del:text-red-500 transition-colors" />}
                         </Button>
                       </div>
                     </TableCell>

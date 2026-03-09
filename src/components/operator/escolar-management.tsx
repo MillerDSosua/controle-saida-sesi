@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, where, getDocs, limit } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +14,10 @@ import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, CheckCircle2,
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 export function EscolarManagement() {
   const { user } = useAuth();
+  const db = useFirestore();
   const [escolares, setEscolares] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [calls, setCalls] = useState<Record<string, any>>({});
@@ -28,22 +26,21 @@ export function EscolarManagement() {
   const [editingEscolar, setEditingEscolar] = useState<any>(null);
   const [name, setName] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
 
-    console.log("Iniciando listeners Escolares para o dia:", diaRef);
+    console.log("[EscolarManagement] Iniciando listeners para o dia:", diaRef);
 
     const unsubE = onSnapshot(
       query(collection(db, "escolares"), orderBy("nome", "asc")), 
       (s) => {
         setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
-      async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'escolares', operation: 'list' }));
-      }
+      (error) => console.error("[EscolarManagement] Erro no listener de escolares:", error)
     );
 
     const unsubS = onSnapshot(
@@ -51,9 +48,7 @@ export function EscolarManagement() {
       (s) => {
         setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
-      async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'students', operation: 'list' }));
-      }
+      (error) => console.error("[EscolarManagement] Erro no listener de alunos:", error)
     );
 
     const qCalls = query(
@@ -74,48 +69,88 @@ export function EscolarManagement() {
         });
         setCalls(callsMap);
       },
-      async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'calls', operation: 'list' }));
-      }
+      (error) => console.error("[EscolarManagement] Erro no listener de chamadas:", error)
     );
 
     return () => { unsubE(); unsubS(); unsubCalls(); };
-  }, [diaRef, user]);
+  }, [db, diaRef, user]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!db) return;
     try {
       if (editingEscolar) {
+        console.log("[EscolarManagement] Atualizando escolar:", editingEscolar.id);
         await updateDoc(doc(db, "escolares", editingEscolar.id), {
           nome: name,
           updatedAt: serverTimestamp(),
         });
-        toast({ title: "Sucesso", description: "Escolar atualizado." });
+        toast({ title: "Sucesso", description: "Escolar atualizado com sucesso." });
       } else {
+        console.log("[EscolarManagement] Criando novo escolar:", name);
         await addDoc(collection(db, "escolares"), {
           nome: name,
           ativo: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-        toast({ title: "Sucesso", description: "Escolar cadastrado." });
+        toast({ title: "Sucesso", description: "Escolar cadastrado com sucesso." });
       }
       setIsDialogOpen(false);
       setEditingEscolar(null);
       setName("");
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[EscolarManagement] Erro ao salvar:", error);
       toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar escolar." });
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Deseja excluir este escolar?")) {
-      try {
-        await deleteDoc(doc(db, "escolares", id));
-        toast({ title: "Sucesso", description: "Escolar removido." });
-      } catch (error) {
-        toast({ variant: "destructive", title: "Erro", description: "Erro ao excluir." });
+  const handleDelete = async (id: string, escolarName: string) => {
+    if (!db || isDeletingId) return;
+
+    console.log(`[EscolarManagement] Tentando excluir escolar: ${escolarName} (${id})`);
+
+    if (!confirm(`Tem certeza que deseja excluir o transporte "${escolarName}"?`)) {
+      return;
+    }
+
+    setIsDeletingId(id);
+
+    try {
+      // Validação: Verificar se existem alunos vinculados a este escolar
+      console.log("[EscolarManagement] Verificando dependências de alunos...");
+      const studentsQuery = query(
+        collection(db, "students"), 
+        where("escolarId", "==", id),
+        limit(1)
+      );
+      const studentsSnapshot = await getDocs(studentsQuery);
+
+      if (!studentsSnapshot.empty) {
+        console.warn("[EscolarManagement] Exclusão abortada: Existem alunos vinculados.");
+        toast({
+          variant: "destructive",
+          title: "Não é possível excluir",
+          description: "Existem alunos vinculados a este transporte. Altere o transporte dos alunos antes de excluir o cadastro.",
+        });
+        setIsDeletingId(null);
+        return;
       }
+
+      console.log("[EscolarManagement] Nenhuma dependência encontrada. Excluindo documento...");
+      await deleteDoc(doc(db, "escolares", id));
+      
+      console.log("[EscolarManagement] Exclusão realizada com sucesso.");
+      toast({ title: "Sucesso", description: "Transporte escolar removido com sucesso." });
+    } catch (error: any) {
+      console.error("[EscolarManagement] Erro crítico na exclusão:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro ao excluir", 
+        description: error.message || "Ocorreu uma falha no servidor ao tentar excluir o transporte." 
+      });
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -129,24 +164,24 @@ export function EscolarManagement() {
   };
 
   const handleToggleCall = async (escolar: any) => {
-    if (processingIds.has(escolar.id)) return;
+    if (!db || processingIds.has(escolar.id)) return;
     toggleProcessing(escolar.id, true);
 
-    console.log(">>> AÇÃO: Toggle Escolar para", escolar.nome);
+    console.log("[EscolarManagement] Iniciando toggle de chamada para escolar:", escolar.nome);
     const existingCall = calls[escolar.id];
     const relatedStudents = students.filter(s => s.escolarId === escolar.id);
     const relatedClasses = Array.from(new Set(relatedStudents.map(s => s.turmaId)));
 
     try {
       if (existingCall && existingCall.status === "Chamado") {
-        console.log("Cancelando chamada de escolar:", existingCall.id);
+        console.log("[EscolarManagement] Cancelando chamada de escolar:", existingCall.id);
         const callRef = doc(db, "calls", existingCall.id);
         
         await updateDoc(callRef, {
           status: "Cancelado",
           updatedAt: serverTimestamp(),
         });
-        console.log("Sucesso Firestore: Escolar cancelado");
+        console.log("[EscolarManagement] Chamada cancelada com sucesso.");
         
         toast({ title: "Chamada Cancelada", description: `Escolar ${escolar.nome} removido do quadro.` });
       } else {
@@ -165,22 +200,21 @@ export function EscolarManagement() {
         };
 
         if (existingCall) {
-          console.log("Reativando chamada de escolar existente:", existingCall.id);
+          console.log("[EscolarManagement] Reativando chamada de escolar existente:", existingCall.id);
           await updateDoc(doc(db, "calls", existingCall.id), payload);
-          console.log("Sucesso Firestore: Escolar re-chamado");
         } else {
-          console.log("Criando nova chamada de escolar");
+          console.log("[EscolarManagement] Criando nova chamada de escolar");
           await addDoc(collection(db, "calls"), {
             ...payload,
             createdAt: serverTimestamp(),
           });
-          console.log("Sucesso Firestore: Novo chamado de escolar criado");
         }
+        console.log("[EscolarManagement] Chamada realizada com sucesso.");
         
         toast({ title: "Escolar Chamado", description: `Transporte ${escolar.nome} enviado ao quadro.` });
       }
     } catch (error: any) {
-      console.error("FALHA na escrita de escolar:", error);
+      console.error("[EscolarManagement] Erro ao processar chamada:", error);
       toast({ 
         variant: "destructive", 
         title: "Erro", 
@@ -262,11 +296,17 @@ export function EscolarManagement() {
                   }}>
                     <Edit2 size={14} className="text-primary" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur shadow-sm hover:bg-red-50" onClick={(evt) => {
-                    evt.stopPropagation();
-                    handleDelete(e.id);
-                  }}>
-                    <Trash2 size={14} className="text-destructive" />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur shadow-sm hover:bg-red-50" 
+                    disabled={isDeletingId === e.id}
+                    onClick={(evt) => {
+                      evt.stopPropagation();
+                      handleDelete(e.id, e.nome);
+                    }}
+                  >
+                    {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin text-destructive" /> : <Trash2 size={14} className="text-destructive" />}
                   </Button>
                 </div>
 

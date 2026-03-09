@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, getDocs, where, limit } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit2, Trash2, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function ClassManagement() {
@@ -20,6 +20,7 @@ export function ClassManagement() {
   const [editingClass, setEditingClass] = useState<any>(null);
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,7 +46,6 @@ export function ClassManagement() {
       if (editingClass) {
         console.log("[ClassManagement] Atualizando classe...", editingClass.id, payload);
         await updateDoc(doc(db, "classes", editingClass.id), payload);
-        console.log("[ClassManagement] Sucesso updateDoc.");
         toast({ title: "Sucesso", description: "Turma atualizada com sucesso." });
       } else {
         const newPayload = {
@@ -54,8 +54,7 @@ export function ClassManagement() {
           createdAt: serverTimestamp(),
         };
         console.log("[ClassManagement] Criando nova classe...", newPayload);
-        const docRef = await addDoc(collection(db, "classes"), newPayload);
-        console.log("[ClassManagement] Sucesso addDoc. ID:", docRef.id);
+        await addDoc(collection(db, "classes"), newPayload);
         toast({ title: "Sucesso", description: "Turma criada com sucesso." });
       }
       setIsDialogOpen(false);
@@ -69,18 +68,52 @@ export function ClassManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!db) return;
-    if (confirm("Tem certeza que deseja excluir esta turma?")) {
-      try {
-        console.log("[ClassManagement] Excluindo classe...", id);
-        await deleteDoc(doc(db, "classes", id));
-        console.log("[ClassManagement] Sucesso deleteDoc.");
-        toast({ title: "Sucesso", description: "Turma excluída." });
-      } catch (error: any) {
-        console.error("[ClassManagement] Erro ao excluir:", error);
-        toast({ variant: "destructive", title: "Erro ao excluir", description: error.message || "Ocorreu uma falha no Firestore." });
+  const handleDelete = async (id: string, className: string) => {
+    if (!db || isDeletingId) return;
+    
+    console.log(`[ClassManagement] Tentando excluir turma: ${className} (${id})`);
+
+    if (!confirm(`Tem certeza que deseja excluir a turma "${className}"?`)) {
+      return;
+    }
+
+    setIsDeletingId(id);
+
+    try {
+      // Validação: Verificar se existem alunos vinculados a esta turma
+      console.log("[ClassManagement] Verificando dependências de alunos...");
+      const studentsQuery = query(
+        collection(db, "students"), 
+        where("turmaId", "==", id),
+        limit(1)
+      );
+      const studentsSnapshot = await getDocs(studentsQuery);
+
+      if (!studentsSnapshot.empty) {
+        console.warn("[ClassManagement] Exclusão abortada: Existem alunos vinculados.");
+        toast({
+          variant: "destructive",
+          title: "Não é possível excluir",
+          description: "Existem alunos matriculados nesta turma. Remova ou transfira os alunos antes de excluir a turma.",
+        });
+        setIsDeletingId(null);
+        return;
       }
+
+      console.log("[ClassManagement] Nenhuma dependência encontrada. Excluindo documento...");
+      await deleteDoc(doc(db, "classes", id));
+      
+      console.log("[ClassManagement] Exclusão realizada com sucesso.");
+      toast({ title: "Sucesso", description: "Turma excluída com sucesso." });
+    } catch (error: any) {
+      console.error("[ClassManagement] Erro crítico na exclusão:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Erro ao excluir", 
+        description: error.message || "Ocorreu uma falha no servidor ao tentar excluir." 
+      });
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -158,8 +191,14 @@ export function ClassManagement() {
                         }}>
                           <Edit2 size={16} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(c.id)}>
-                          <Trash2 size={16} />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive" 
+                          disabled={isDeletingId === c.id}
+                          onClick={() => handleDelete(c.id, c.nome)}
+                        >
+                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
                         </Button>
                       </div>
                     </TableCell>
