@@ -47,11 +47,13 @@ export default function LoginPage() {
         description: "Bem-vindo ao sistema SESI.",
       });
   
+      // Redirecionamento baseado na role
       if (userData.role === "operator") {
         router.push("/operator");
       } else if (userData.role === "viewer") {
         router.push("/viewer");
       } else {
+        console.error("[Login] Role inválida detectada:", userData.role);
         throw new Error("INVALID_ROLE");
       }
   
@@ -65,6 +67,9 @@ export default function LoginPage() {
       } else if (error?.message === "ROLE_NOT_FOUND") {
         title = "Conta não configurada";
         description = "Sua conta não possui permissões no Firestore.";
+      } else if (error?.message === "INVALID_ROLE") {
+        title = "Acesso Negado";
+        description = "Sua conta não possui um nível de acesso válido.";
       }
   
       toast({

@@ -18,10 +18,16 @@ export default function ViewerPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const [selectedClass, setSelectedClass] = useState("all");
-  const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [diaRef, setDiaRef] = useState<string | null>(null);
+
+  // Evitar erro de hidratação definindo a data apenas no cliente
+  useEffect(() => {
+    setDiaRef(format(new Date(), "yyyy-MM-dd"));
+  }, []);
 
   useEffect(() => {
     if (!loading && (!user || role !== "viewer")) {
+      console.log("[ViewerPage] Acesso negado. User:", !!user, "Role:", role);
       router.push("/");
     }
   }, [user, role, loading, router]);
@@ -44,9 +50,9 @@ export default function ViewerPage() {
   }, [firestore]);
 
   const { data: calls, isLoading: callsLoading } = useCollection(callsQuery);
-  const { data: classes, isLoading: classesLoading } = useCollection(classesQuery);
+  const { data: classes } = useCollection(classesQuery);
 
-  if (loading || !user || role !== "viewer") {
+  if (loading || !user || role !== "viewer" || !diaRef) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>

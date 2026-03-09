@@ -8,18 +8,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isOperator() {
-      return isSignedIn() && getRole() == 'operator';
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // --- COLLECTION RULES ---
 
     /**
@@ -27,46 +15,31 @@ service cloud.firestore {
      * Users can read and manage their own profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow list, delete: if false;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * Rules for Classes.
-     * Readable by any authenticated user (for filters), manageable by Operators.
+     * Rules for shared collections.
+     * Readable by any authenticated user, manageable by authenticated users.
      */
     match /classes/{classId} {
       allow read: if isSignedIn();
-      allow write: if isOperator();
+      allow write: if isSignedIn();
     }
 
-    /**
-     * Rules for Students.
-     * Readable by any authenticated user (to display names), manageable by Operators.
-     */
     match /students/{studentId} {
       allow read: if isSignedIn();
-      allow write: if isOperator();
+      allow write: if isSignedIn();
     }
 
-    /**
-     * Rules for Escolares.
-     * Readable by any authenticated user, manageable by Operators.
-     */
     match /escolares/{escolarId} {
       allow read: if isSignedIn();
-      allow write: if isOperator();
+      allow write: if isSignedIn();
     }
 
-    /**
-     * Rules for Call records.
-     * Essential for the Real-time Viewer. Readable by everyone authenticated.
-     */
     match /calls/{callId} {
       allow read: if isSignedIn();
-      allow write: if isOperator();
+      allow write: if isSignedIn();
     }
   }
 }

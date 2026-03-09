@@ -11,12 +11,16 @@ export default function Home() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
+        console.log("[Home] Nenhum usuário autenticado. Redirecionando para login.");
         router.push("/login");
       } else if (role === "operator") {
+        console.log("[Home] Usuário operador detectado. Redirecionando para /operator.");
         router.push("/operator");
       } else if (role === "viewer") {
+        console.log("[Home] Usuário visitante detectado. Redirecionando para /viewer.");
         router.push("/viewer");
       } else {
+        console.log("[Home] Usuário autenticado mas sem role definida. Redirecionando para login.");
         router.push("/login");
       }
     }
