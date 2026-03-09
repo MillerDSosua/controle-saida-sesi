@@ -31,29 +31,45 @@ export default function OperatorPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader title="Controle de Saída SESI" />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <Tabs defaultValue="calls" className="space-y-8" onValueChange={setActiveTab}>
-          <div className="flex items-center justify-center sm:justify-start overflow-x-auto pb-1 scrollbar-hide">
-            <TabsList className="flex w-full sm:w-auto apple-blur p-1.5 h-14 rounded-2xl border border-slate-200 shadow-sm bg-white/50">
-              <TabsTrigger value="calls" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
-                <PhoneOutgoing size={18} />
-                <span className="text-sm">Chamadas</span>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
+        <Tabs defaultValue="calls" className="space-y-6 sm:space-y-8" onValueChange={setActiveTab}>
+          {/* Navegação por Abas Refinada para Mobile */}
+          <div className="flex items-center justify-start sm:justify-center overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
+            <TabsList className="flex w-max sm:w-auto apple-blur p-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm bg-white/50 backdrop-blur-md">
+              <TabsTrigger 
+                value="calls" 
+                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+              >
+                <PhoneOutgoing size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span>Chamadas</span>
               </TabsTrigger>
-              <TabsTrigger value="escolares" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
-                <Bus size={18} />
-                <span className="text-sm">Escolares</span>
+              <TabsTrigger 
+                value="escolares" 
+                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+              >
+                <Bus size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span>Escolares</span>
               </TabsTrigger>
-              <TabsTrigger value="students" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
-                <GraduationCap size={18} />
-                <span className="text-sm">Alunos</span>
+              <TabsTrigger 
+                value="students" 
+                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+              >
+                <GraduationCap size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span>Alunos</span>
               </TabsTrigger>
-              <TabsTrigger value="classes" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
-                <Users size={18} />
-                <span className="text-sm">Turmas</span>
+              <TabsTrigger 
+                value="classes" 
+                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+              >
+                <Users size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span>Turmas</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex-1 sm:flex-none items-center gap-2 px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md">
-                <History size={18} />
-                <span className="text-sm">Histórico</span>
+              <TabsTrigger 
+                value="history" 
+                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+              >
+                <History size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span>Histórico</span>
               </TabsTrigger>
             </TabsList>
           </div>

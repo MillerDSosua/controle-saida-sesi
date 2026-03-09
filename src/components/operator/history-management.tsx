@@ -44,36 +44,38 @@ export function HistoryManagement() {
 
   return (
     <div className="space-y-8">
-      {/* Toolbar Normalizada */}
-      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div className="relative flex-1 w-full sm:max-w-2xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <Input 
-            placeholder="Filtrar histórico..." 
-            className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all" 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-          />
-        </div>
-        <div className="w-full sm:w-64">
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-semibold focus:ring-2 focus:ring-primary/10 transition-all">
-              <SelectValue placeholder="Todas as turmas" />
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl shadow-xl border-slate-100">
-              <SelectItem value="all" className="font-medium">Todas as turmas</SelectItem>
-              {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-medium">{c.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      {/* Toolbar Normalizada - Mesma estrutura das outras abas */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input 
+              placeholder="Buscar no histórico..." 
+              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+          </div>
+          <div className="w-full sm:w-64">
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-semibold focus:ring-2 focus:ring-primary/10 transition-all">
+                <SelectValue placeholder="Todas as turmas" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl shadow-xl border-slate-100">
+                <SelectItem value="all" className="font-medium">Todas as turmas</SelectItem>
+                {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-medium">{c.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       <Card className="premium-card overflow-hidden border-none shadow-sm bg-white">
-        <CardHeader className="flex flex-row items-center justify-between border-b px-8 py-5 bg-slate-50/50">
-          <CardTitle className="text-base font-black flex items-center gap-2 text-primary uppercase tracking-wider">
+        <CardHeader className="flex flex-row items-center justify-between border-b px-6 sm:px-8 py-5">
+          <CardTitle className="text-sm sm:text-base font-black flex items-center gap-2 text-primary uppercase tracking-wider">
             <HistoryIcon size={18} /> Atividade de Hoje
           </CardTitle>
-          <Badge variant="outline" className="bg-white border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-widest px-3 py-1">
+          <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-widest px-3 py-1">
             {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
           </Badge>
         </CardHeader>
@@ -109,7 +111,7 @@ export function HistoryManagement() {
                       {h.dataHoraChamado ? format(h.dataHoraChamado.toDate(), "HH:mm") : "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
+                      <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none shadow-sm", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
                         {h.status}
                       </Badge>
                     </TableCell>
@@ -146,7 +148,7 @@ export function HistoryManagement() {
                       </div>
                     </div>
                   </div>
-                  <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
+                  <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none shadow-sm", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
                     {h.status}
                   </Badge>
                 </div>
