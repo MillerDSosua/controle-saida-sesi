@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { useEffect, useState, useMemo } from "react";
+import { collection, query, where } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User as UserIcon, Users, Bus, AlertCircle } from "lucide-react";
+import { Clock, User as UserIcon, Users, Bus, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 
@@ -21,7 +21,7 @@ export default function ViewerPage() {
   const [selectedClass, setSelectedClass] = useState("all");
   const [diaRef, setDiaRef] = useState<string | null>(null);
 
-  // Estabiliza a data de referência no lado do cliente
+  // Estabiliza a data de referência no lado do cliente para evitar erros de hidratação
   useEffect(() => {
     setDiaRef(format(new Date(), "yyyy-MM-dd"));
   }, []);
@@ -32,43 +32,51 @@ export default function ViewerPage() {
     }
   }, [user, role, loading, router]);
 
-  // Query memoizada para chamadas ativas (status Chamado) do dia atual
+  // Query memoizada. 
+  // NOTA: Removemos o orderBy para evitar a necessidade de Índice Composto no Firestore.
+  // A ordenação será feita em memória para garantir funcionamento imediato.
   const callsQuery = useMemoFirebase(() => {
     if (!firestore || !diaRef) return null;
     return query(
       collection(firestore, "calls"),
       where("diaRef", "==", diaRef),
-      where("status", "==", "Chamado"),
-      orderBy("dataHoraChamado", "desc")
+      where("status", "==", "Chamado")
     );
   }, [firestore, diaRef]);
 
-  // Query memoizada para a lista de turmas (filtros)
+  // Query para a lista de turmas (filtros)
   const classesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "classes"), orderBy("nome", "asc"));
+    return query(collection(firestore, "classes"));
   }, [firestore]);
 
   const { data: calls, isLoading: callsLoading, error: callsError } = useCollection(callsQuery);
   const { data: classes } = useCollection(classesQuery);
 
-  // Lógica de filtragem local
-  const filteredCalls = (calls || []).filter(call => {
-    if (selectedClass === "all") return true;
-    
-    // Se for escolar, verifica se a turma selecionada está no array de turmas relacionadas
-    if (call.tipo === "escolar") {
-      return call.turmasRelacionadas?.includes(selectedClass);
-    }
-    
-    // Se for chamada individual, compara o ID da turma
-    return call.turmaId === selectedClass;
-  });
+  // Lógica de filtragem e ordenação local
+  const processedCalls = useMemo(() => {
+    if (!calls) return [];
+
+    const filtered = calls.filter(call => {
+      if (selectedClass === "all") return true;
+      if (call.tipo === "escolar") {
+        return call.turmasRelacionadas?.includes(selectedClass);
+      }
+      return call.turmaId === selectedClass;
+    });
+
+    // Ordenação manual por dataHoraChamado desc
+    return [...filtered].sort((a, b) => {
+      const timeA = a.dataHoraChamado?.toMillis?.() || 0;
+      const timeB = b.dataHoraChamado?.toMillis?.() || 0;
+      return timeB - timeA;
+    });
+  }, [calls, selectedClass]);
 
   if (loading || !user || role !== "viewer" || !diaRef) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
@@ -93,7 +101,7 @@ export default function ViewerPage() {
                 <Users size={20} />
               </div>
               <div>
-                <span className="block text-2xl font-bold text-primary leading-none">{filteredCalls.length}</span>
+                <span className="block text-2xl font-bold text-primary leading-none">{processedCalls.length}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados</span>
               </div>
             </div>
@@ -113,54 +121,58 @@ export default function ViewerPage() {
         </div>
 
         {callsError && (
-          <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-center gap-3">
-            <AlertCircle size={20} />
-            <p className="font-semibold">Erro ao carregar chamadas. Por favor, contate o suporte.</p>
+          <div className="mb-8 p-6 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={24} />
+              <p className="font-bold text-lg">Erro ao carregar chamadas em tempo real.</p>
+            </div>
+            <p className="text-sm opacity-80">Por favor, verifique sua conexão ou contate o administrador de TI.</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {callsLoading ? (
             <div className="col-span-full py-24 flex justify-center">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              <Loader2 className="h-12 w-12 animate-spin text-primary/40" />
             </div>
-          ) : filteredCalls.length > 0 ? (
-            filteredCalls.map((call) => (
+          ) : processedCalls.length > 0 ? (
+            processedCalls.map((call) => (
               <Card 
                 key={call.id} 
                 className={cn(
-                  "premium-card border-t-[10px] animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700",
+                  "premium-card border-t-[10px] animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700 h-[320px]",
                   call.tipo === 'escolar' ? "border-t-orange-500 bg-orange-50/10" : "border-t-primary"
                 )}
               >
-                <CardContent className="p-8">
-                  <div className="flex flex-col items-center text-center space-y-6">
+                <CardContent className="p-8 flex flex-col items-center text-center justify-between h-full">
+                  <div className="space-y-6 flex flex-col items-center w-full">
                     <div className={cn(
-                      "h-24 w-24 rounded-full flex items-center justify-center shadow-inner relative",
+                      "h-20 w-20 rounded-full flex items-center justify-center shadow-inner relative",
                       call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
                     )}>
-                      {call.tipo === 'escolar' ? <Bus size={48} /> : <UserIcon size={48} />}
-                      <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-green-500 border-4 border-white flex items-center justify-center animate-pulse">
+                      {call.tipo === 'escolar' ? <Bus size={40} /> : <UserIcon size={40} />}
+                      <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-green-500 border-4 border-white flex items-center justify-center animate-pulse">
                         <div className="h-2 w-2 rounded-full bg-white"></div>
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
+                    <div className="space-y-1 w-full">
                       <h3 className={cn(
-                        "text-2xl font-black leading-tight tracking-tight line-clamp-2 min-h-[4rem] flex items-center justify-center",
+                        "text-xl font-black leading-tight tracking-tight line-clamp-2 min-h-[3rem] flex items-center justify-center",
                         call.tipo === 'escolar' ? "text-orange-700" : "text-primary"
                       )}>
                         {call.tipo === 'escolar' ? call.escolarNome : call.nomeExibicao}
                       </h3>
-                      <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em]">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                         {call.tipo === 'escolar' ? "Transporte Escolar" : call.turmaNome}
                       </p>
                     </div>
+                  </div>
 
+                  <div className="w-full space-y-4">
                     <div className="w-full h-px bg-slate-100"></div>
-                    
                     <div className="space-y-0.5">
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Chamado às</span>
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Chamado às</span>
                       <div className={cn(
                         "flex items-center justify-center gap-2 font-black tabular-nums text-4xl",
                         call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
@@ -179,7 +191,7 @@ export default function ViewerPage() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-3xl font-black text-primary">Quadro Livre</h3>
-                <p className="text-xl max-w-sm mx-auto">Aguardando as próximas liberações de saída para exibição.</p>
+                <p className="text-xl max-w-sm mx-auto font-medium">Aguardando as próximas liberações de saída para exibição.</p>
               </div>
             </div>
           )}
