@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -106,7 +107,6 @@ export function CallManagement() {
         
         console.log("[CallManagement] Gravando updateDoc em 'calls'...", callRef.path, payload);
         await updateDoc(callRef, payload);
-        console.log("[CallManagement] Sucesso updateDoc.");
         
         toast({ 
           title: "Chamada Cancelada", 
@@ -114,6 +114,7 @@ export function CallManagement() {
         });
       } else {
         const payload = {
+          tipo: "aluno",
           studentId: student.id,
           nomeExibicao: student.nomeExibicao,
           turmaId: student.turmaId,
@@ -131,11 +132,9 @@ export function CallManagement() {
           const callRef = doc(db, "calls", existingCall.id);
           console.log("[CallManagement] Reativando chamada existente via updateDoc...", callRef.path, payload);
           await updateDoc(callRef, payload);
-          console.log("[CallManagement] Sucesso updateDoc (reativação).");
         } else {
           console.log("[CallManagement] Criando nova chamada via addDoc em 'calls'...", payload);
-          const docRef = await addDoc(collection(db, "calls"), payload);
-          console.log("[CallManagement] Sucesso addDoc. ID:", docRef.id);
+          await addDoc(collection(db, "calls"), payload);
         }
         
         toast({ 

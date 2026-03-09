@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User as UserIcon, Users, Bus } from "lucide-react";
+import { Clock, User as UserIcon, Users, Bus, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 
@@ -20,19 +21,18 @@ export default function ViewerPage() {
   const [selectedClass, setSelectedClass] = useState("all");
   const [diaRef, setDiaRef] = useState<string | null>(null);
 
-  // Evitar erro de hidratação definindo a data apenas no cliente
+  // Estabiliza a data de referência no lado do cliente
   useEffect(() => {
     setDiaRef(format(new Date(), "yyyy-MM-dd"));
   }, []);
 
   useEffect(() => {
     if (!loading && (!user || role !== "viewer")) {
-      console.log("[ViewerPage] Acesso negado. User:", !!user, "Role:", role);
       router.push("/");
     }
   }, [user, role, loading, router]);
 
-  // Query memoizada para as chamadas ativas de hoje
+  // Query memoizada para chamadas ativas (status Chamado) do dia atual
   const callsQuery = useMemoFirebase(() => {
     if (!firestore || !diaRef) return null;
     return query(
@@ -43,14 +43,27 @@ export default function ViewerPage() {
     );
   }, [firestore, diaRef]);
 
-  // Query memoizada para as turmas (filtros)
+  // Query memoizada para a lista de turmas (filtros)
   const classesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "classes"), orderBy("nome", "asc"));
   }, [firestore]);
 
-  const { data: calls, isLoading: callsLoading } = useCollection(callsQuery);
+  const { data: calls, isLoading: callsLoading, error: callsError } = useCollection(callsQuery);
   const { data: classes } = useCollection(classesQuery);
+
+  // Lógica de filtragem local
+  const filteredCalls = (calls || []).filter(call => {
+    if (selectedClass === "all") return true;
+    
+    // Se for escolar, verifica se a turma selecionada está no array de turmas relacionadas
+    if (call.tipo === "escolar") {
+      return call.turmasRelacionadas?.includes(selectedClass);
+    }
+    
+    // Se for chamada individual, compara o ID da turma
+    return call.turmaId === selectedClass;
+  });
 
   if (loading || !user || role !== "viewer" || !diaRef) {
     return (
@@ -59,15 +72,6 @@ export default function ViewerPage() {
       </div>
     );
   }
-
-  // Filtro local baseado na seleção do usuário
-  const filteredCalls = (calls || []).filter(call => {
-    if (selectedClass === "all") return true;
-    if (call.tipo === "escolar") {
-      return call.turmasRelacionadas?.includes(selectedClass);
-    }
-    return call.turmaId === selectedClass;
-  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -84,13 +88,13 @@ export default function ViewerPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-6 w-full lg:w-auto">
-            <div className="flex items-center gap-3 bg-white px-6 py-4 rounded-2xl shadow-sm border">
+            <div className="flex items-center gap-3 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100">
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                 <Users size={20} />
               </div>
               <div>
                 <span className="block text-2xl font-bold text-primary leading-none">{filteredCalls.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ativos</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados</span>
               </div>
             </div>
 
@@ -108,6 +112,13 @@ export default function ViewerPage() {
           </div>
         </div>
 
+        {callsError && (
+          <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-center gap-3">
+            <AlertCircle size={20} />
+            <p className="font-semibold">Erro ao carregar chamadas. Por favor, contate o suporte.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {callsLoading ? (
             <div className="col-span-full py-24 flex justify-center">
@@ -119,7 +130,7 @@ export default function ViewerPage() {
                 key={call.id} 
                 className={cn(
                   "premium-card border-t-[10px] animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700",
-                  call.tipo === 'escolar' ? "border-t-orange-500 bg-orange-50/5" : "border-t-primary"
+                  call.tipo === 'escolar' ? "border-t-orange-500 bg-orange-50/10" : "border-t-primary"
                 )}
               >
                 <CardContent className="p-8">
@@ -146,7 +157,7 @@ export default function ViewerPage() {
                       </p>
                     </div>
 
-                    <div className="w-full h-px bg-border"></div>
+                    <div className="w-full h-px bg-slate-100"></div>
                     
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Chamado às</span>
