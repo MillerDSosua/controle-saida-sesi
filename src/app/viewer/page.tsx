@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -10,16 +9,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User, Users, Bus } from "lucide-react";
+import { Clock, User as UserIcon, Users, Bus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 
 export default function ViewerPage() {
   const { user, role, loading } = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
-  const [calls, setCalls] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("all");
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
@@ -29,49 +26,28 @@ export default function ViewerPage() {
     }
   }, [user, role, loading, router]);
 
-  useEffect(() => {
-    if (!user || role !== "viewer") return;
-
-    // Monitorar todas as chamadas ativas de hoje
-    const qCalls = query(
-      collection(db, "calls"),
+  // Queries memoizadas para evitar re-subscrições infinitas
+  const callsQuery = useMemoFirebase(() => {
+    if (!firestore || !diaRef) return null;
+    return query(
+      collection(firestore, "calls"),
       where("diaRef", "==", diaRef),
       where("status", "==", "Chamado"),
       orderBy("dataHoraChamado", "desc")
     );
-    
-    const unsubCalls = onSnapshot(
-      qCalls, 
-      (s) => {
-        setCalls(s.docs.map(d => ({ id: d.id, ...d.data() })));
-      },
-      async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'calls',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      }
-    );
+  }, [firestore, diaRef]);
 
-    // Monitorar turmas para o filtro
-    const qC = query(collection(db, "classes"), orderBy("nome", "asc"));
-    const unsubC = onSnapshot(
-      qC, 
-      (s) => {
-        setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
-      },
-      async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'classes',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      }
-    );
+  const classesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "classes"), orderBy("nome", "asc"));
+  }, [firestore]);
 
-    return () => { unsubCalls(); unsubC(); };
-  }, [diaRef, user, role]);
+  // Hooks de coleção centralizados
+  const { data: callsData, isLoading: callsLoading } = useCollection(callsQuery);
+  const { data: classesData, isLoading: classesLoading } = useCollection(classesQuery);
+
+  const calls = callsData || [];
+  const classes = classesData || [];
 
   if (loading || !user || role !== "viewer") {
     return (
@@ -132,7 +108,11 @@ export default function ViewerPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredCalls.length > 0 ? (
+          {(callsLoading || classesLoading) ? (
+            <div className="col-span-full py-24 flex justify-center">
+               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            </div>
+          ) : filteredCalls.length > 0 ? (
             filteredCalls.map((call) => (
               <Card 
                 key={call.id} 
@@ -147,7 +127,7 @@ export default function ViewerPage() {
                       "h-24 w-24 rounded-full flex items-center justify-center shadow-inner relative",
                       call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
                     )}>
-                      {call.tipo === 'escolar' ? <Bus size={48} /> : <User size={48} />}
+                      {call.tipo === 'escolar' ? <Bus size={48} /> : <UserIcon size={48} />}
                       <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-green-500 border-4 border-white flex items-center justify-center animate-pulse">
                         <div className="h-2 w-2 rounded-full bg-white"></div>
                       </div>

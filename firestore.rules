@@ -7,9 +7,7 @@ service cloud.firestore {
      * 
      * CORE PHILOSOPHY:
      * This ruleset implements a Database-Based Access Control (DBAC) model where user roles
-     * ('operator', 'viewer') are stored in the '/users' collection. Authorization is 
-     * strictly enforced based on these roles to ensure that only authorized personnel 
-     * can manage students, classes, and calls.
+     * ('operator', 'viewer') are stored in the '/users' collection.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -50,13 +48,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for Classes. Managed by Operators, readable by both.
+     * @description Rules for Classes. Managed by Operators, readable by any signed-in user.
      */
     match /classes/{classId} {
-      allow get, list: if isOperator() || isViewer();
-      allow create: if isOperator() && request.resource.data.id == classId;
-      allow update: if isOperator() && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isOperator() && resource != null;
+      allow get, list: if isSignedIn();
+      allow write: if isOperator();
     }
 
     /**
@@ -64,29 +60,23 @@ service cloud.firestore {
      */
     match /students/{studentId} {
       allow get, list: if isOperator();
-      allow create: if isOperator() && request.resource.data.id == studentId;
-      allow update: if isOperator() && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isOperator() && resource != null;
+      allow write: if isOperator();
     }
 
     /**
-     * @description Rules for Escolares. Managed by Operators, readable by both.
+     * @description Rules for Escolares. Managed by Operators, readable by any signed-in user.
      */
     match /escolares/{escolarId} {
-      allow get, list: if isOperator() || isViewer();
-      allow create: if isOperator();
-      allow update: if isOperator() && resource != null;
-      allow delete: if isOperator() && resource != null;
+      allow get, list: if isSignedIn();
+      allow write: if isOperator();
     }
 
     /**
-     * @description Rules for Call records. Supports real-time monitoring for viewers.
+     * @description Rules for Call records. Supports real-time monitoring.
      */
     match /calls/{callId} {
-      allow get, list: if isOperator() || isViewer();
-      allow create: if isOperator() && request.resource.data.id == callId && request.resource.data.chamadoPorUid == request.auth.uid;
-      allow update: if isOperator() && resource != null && request.resource.data.id == resource.data.id && request.resource.data.chamadoPorUid == resource.data.chamadoPorUid;
-      allow delete: if isOperator() && resource != null;
+      allow get, list: if isSignedIn();
+      allow write: if isOperator();
     }
 
   }
