@@ -8,9 +8,20 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User as UserIcon, Users, Bus, AlertCircle, Loader2 } from "lucide-react";
+import { 
+  Clock, 
+  User as UserIcon, 
+  Users, 
+  Bus, 
+  AlertCircle, 
+  Loader2, 
+  LayoutGrid, 
+  List,
+  ArrowRight
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 
@@ -18,10 +29,12 @@ export default function ViewerPage() {
   const { user, role, loading } = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
+  
   const [selectedClass, setSelectedClass] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [diaRef, setDiaRef] = useState<string | null>(null);
 
-  // Estabiliza a data de referência no lado do cliente para evitar erros de hidratação
+  // Estabiliza a data de referência no lado do cliente
   useEffect(() => {
     setDiaRef(format(new Date(), "yyyy-MM-dd"));
   }, []);
@@ -32,9 +45,7 @@ export default function ViewerPage() {
     }
   }, [user, role, loading, router]);
 
-  // Query memoizada. 
-  // NOTA: Removemos o orderBy para evitar a necessidade de Índice Composto no Firestore.
-  // A ordenação será feita em memória para garantir funcionamento imediato.
+  // Query de chamadas ativas do dia
   const callsQuery = useMemoFirebase(() => {
     if (!firestore || !diaRef) return null;
     return query(
@@ -44,7 +55,7 @@ export default function ViewerPage() {
     );
   }, [firestore, diaRef]);
 
-  // Query para a lista de turmas (filtros)
+  // Query para a lista de turmas
   const classesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "classes"));
@@ -53,7 +64,7 @@ export default function ViewerPage() {
   const { data: calls, isLoading: callsLoading, error: callsError } = useCollection(callsQuery);
   const { data: classes } = useCollection(classesQuery);
 
-  // Lógica de filtragem e ordenação local
+  // Filtragem e ordenação manual para evitar índices compostos obrigatórios no início
   const processedCalls = useMemo(() => {
     if (!calls) return [];
 
@@ -65,7 +76,6 @@ export default function ViewerPage() {
       return call.turmaId === selectedClass;
     });
 
-    // Ordenação manual por dataHoraChamado desc
     return [...filtered].sort((a, b) => {
       const timeA = a.dataHoraChamado?.toMillis?.() || 0;
       const timeB = b.dataHoraChamado?.toMillis?.() || 0;
@@ -82,129 +92,221 @@ export default function ViewerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#F5F5F7] flex flex-col selection:bg-primary selection:text-white">
       <DashboardHeader title="Quadro de Saída Inteligente" />
 
-      <main className="flex-1 container mx-auto px-4 py-10 sm:px-8">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-12">
-          <div className="space-y-2">
-            <h2 className="text-4xl sm:text-5xl font-black text-primary tracking-tight">Próximas Saídas</h2>
-            <p className="text-lg text-muted-foreground font-semibold flex items-center gap-2">
-              <Clock size={20} className="text-primary/40" />
-              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 w-full lg:w-auto">
-            <div className="flex items-center gap-3 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <Users size={20} />
-              </div>
-              <div>
-                <span className="block text-2xl font-bold text-primary leading-none">{processedCalls.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chamados</span>
+      <main className="flex-1 container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
+        {/* Cabeçalho da Página com Controles */}
+        <div className="flex flex-col gap-8 mb-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-1.5">
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
+                Próximas Saídas
+              </h2>
+              <div className="flex items-center gap-2 text-slate-500 font-medium">
+                <Clock size={16} className="text-primary/60" />
+                <span className="text-sm capitalize">
+                  {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                </span>
               </div>
             </div>
 
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-full sm:w-64 h-14 bg-white border-2 rounded-2xl text-lg font-bold shadow-sm focus:ring-primary/20 transition-all">
-                <SelectValue placeholder="Filtrar por Turma" />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                <SelectItem value="all">Todas as Turmas</SelectItem>
-                {(classes || []).map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Seletor de Modo de Visualização */}
+              <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-slate-200 h-12">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "rounded-lg h-10 px-3 gap-2 transition-all duration-200",
+                    viewMode === "grid" ? "bg-primary text-white shadow-md hover:bg-primary/90" : "text-slate-500 hover:bg-slate-100"
+                  )}
+                >
+                  <LayoutGrid size={18} />
+                  <span className="text-xs font-bold hidden sm:inline">Quadro</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "rounded-lg h-10 px-3 gap-2 transition-all duration-200",
+                    viewMode === "list" ? "bg-primary text-white shadow-md hover:bg-primary/90" : "text-slate-500 hover:bg-slate-100"
+                  )}
+                >
+                  <List size={18} />
+                  <span className="text-xs font-bold hidden sm:inline">Lista</span>
+                </Button>
+              </div>
+
+              {/* Filtro de Turma */}
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-full sm:w-56 h-12 bg-white border-slate-200 rounded-xl text-sm font-bold shadow-sm hover:border-primary/30 transition-all">
+                  <SelectValue placeholder="Todas as Turmas" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                  <SelectItem value="all" className="font-bold">Todas as Turmas</SelectItem>
+                  {(classes || []).map(c => (
+                    <SelectItem key={c.id} value={c.id} className="font-medium">{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Contador de Ativos */}
+              <div className="hidden lg:flex items-center gap-3 bg-white px-5 py-3 rounded-xl shadow-sm border border-slate-200 h-12">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-black text-slate-700 tracking-tight">
+                  {processedCalls.length} ATIVOS
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
         {callsError && (
-          <div className="mb-8 p-6 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <AlertCircle size={24} />
-              <p className="font-bold text-lg">Erro ao carregar chamadas em tempo real.</p>
-            </div>
-            <p className="text-sm opacity-80">Por favor, verifique sua conexão ou contate o administrador de TI.</p>
+          <div className="mb-8 p-5 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
+            <AlertCircle size={20} />
+            <p className="text-sm font-bold">Não foi possível sincronizar os chamados em tempo real.</p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {callsLoading ? (
-            <div className="col-span-full py-24 flex justify-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary/40" />
-            </div>
-          ) : processedCalls.length > 0 ? (
-            processedCalls.map((call) => (
-              <Card 
-                key={call.id} 
-                className={cn(
-                  "premium-card border-t-[10px] animate-in fade-in zoom-in slide-in-from-bottom-8 duration-700 h-[320px]",
-                  call.tipo === 'escolar' ? "border-t-orange-500 bg-orange-50/10" : "border-t-primary"
-                )}
-              >
-                <CardContent className="p-8 flex flex-col items-center text-center justify-between h-full">
-                  <div className="space-y-6 flex flex-col items-center w-full">
+        {callsLoading ? (
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary/40" />
+            <p className="text-slate-400 font-medium text-sm">Atualizando quadro...</p>
+          </div>
+        ) : processedCalls.length > 0 ? (
+          viewMode === "grid" ? (
+            /* MODO QUADRO (CARDS) */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {processedCalls.map((call) => (
+                <Card 
+                  key={call.id} 
+                  className={cn(
+                    "premium-card border-none overflow-hidden h-[300px] flex flex-col group animate-in fade-in zoom-in duration-500",
+                    call.tipo === 'escolar' ? "bg-gradient-to-br from-orange-50 to-white" : "bg-white"
+                  )}
+                >
+                  <CardContent className="p-0 flex flex-col h-full">
+                    {/* Indicador Lateral de Cor */}
                     <div className={cn(
-                      "h-20 w-20 rounded-full flex items-center justify-center shadow-inner relative",
-                      call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
-                    )}>
-                      {call.tipo === 'escolar' ? <Bus size={40} /> : <UserIcon size={40} />}
-                      <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-green-500 border-4 border-white flex items-center justify-center animate-pulse">
-                        <div className="h-2 w-2 rounded-full bg-white"></div>
+                      "h-2 w-full",
+                      call.tipo === 'escolar' ? "bg-orange-500" : "bg-primary"
+                    )} />
+                    
+                    <div className="p-6 flex flex-col items-center text-center justify-between flex-1">
+                      <div className="space-y-4 flex flex-col items-center w-full">
+                        <div className={cn(
+                          "h-16 w-16 rounded-2xl flex items-center justify-center shadow-sm relative transition-transform duration-300 group-hover:scale-110",
+                          call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
+                        )}>
+                          {call.tipo === 'escolar' ? <Bus size={32} /> : <UserIcon size={32} />}
+                          <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-white" />
+                        </div>
+                        
+                        <div className="space-y-1 w-full">
+                          <h3 className={cn(
+                            "text-lg font-black leading-tight tracking-tight line-clamp-2 min-h-[2.5rem] flex items-center justify-center",
+                            call.tipo === 'escolar' ? "text-orange-900" : "text-slate-900"
+                          )}>
+                            {call.tipo === 'escolar' ? call.escolarNome : call.nomeExibicao}
+                          </h3>
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={cn(
+                              "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                              call.tipo === 'escolar' ? "bg-orange-200/50 text-orange-700" : "bg-slate-100 text-slate-500"
+                            )}>
+                              {call.tipo === 'escolar' ? "Transporte Escolar" : call.turmaNome}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="w-full pt-4 border-t border-slate-50">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1">Horário de Saída</span>
+                        <div className={cn(
+                          "text-4xl font-black tabular-nums tracking-tighter",
+                          call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
+                        )}>
+                          {call.dataHoraChamado ? format(call.dataHoraChamado.toDate(), "HH:mm") : "--:--"}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="space-y-1 w-full">
-                      <h3 className={cn(
-                        "text-xl font-black leading-tight tracking-tight line-clamp-2 min-h-[3rem] flex items-center justify-center",
-                        call.tipo === 'escolar' ? "text-orange-700" : "text-primary"
-                      )}>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            /* MODO LISTA */
+            <div className="space-y-3 max-w-5xl mx-auto">
+              {processedCalls.map((call) => (
+                <div 
+                  key={call.id}
+                  className={cn(
+                    "flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group animate-in slide-in-from-left-4 duration-300",
+                    call.tipo === 'escolar' && "border-l-4 border-l-orange-500"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "h-12 w-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+                      call.tipo === 'escolar' ? "bg-orange-100 text-orange-600" : "bg-primary/5 text-primary"
+                    )}>
+                      {call.tipo === 'escolar' ? <Bus size={24} /> : <UserIcon size={24} />}
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 tracking-tight">
                         {call.tipo === 'escolar' ? call.escolarNome : call.nomeExibicao}
-                      </h3>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                      </h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         {call.tipo === 'escolar' ? "Transporte Escolar" : call.turmaNome}
                       </p>
                     </div>
                   </div>
 
-                  <div className="w-full space-y-4">
-                    <div className="w-full h-px bg-slate-100"></div>
-                    <div className="space-y-0.5">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Chamado às</span>
-                      <div className={cn(
-                        "flex items-center justify-center gap-2 font-black tabular-nums text-4xl",
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Saída</span>
+                      <span className={cn(
+                        "text-2xl font-black tabular-nums tracking-tight",
                         call.tipo === 'escolar' ? "text-orange-600" : "text-primary"
                       )}>
                         {call.dataHoraChamado ? format(call.dataHoraChamado.toDate(), "HH:mm") : "--:--"}
-                      </div>
+                      </span>
                     </div>
+                    <ArrowRight className="text-slate-200 group-hover:text-primary transition-colors" size={20} />
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-full py-48 flex flex-col items-center justify-center text-center space-y-8 opacity-40">
-              <div className="h-32 w-32 rounded-full bg-secondary flex items-center justify-center">
-                <Clock size={64} className="text-muted-foreground" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-3xl font-black text-primary">Quadro Livre</h3>
-                <p className="text-xl max-w-sm mx-auto font-medium">Aguardando as próximas liberações de saída para exibição.</p>
-              </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          )
+        ) : (
+          /* ESTADO VAZIO (QUADRO LIVRE) */
+          <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in duration-1000">
+            <div className="h-24 w-24 rounded-full bg-white flex items-center justify-center shadow-inner mb-6 border border-slate-100">
+              <Clock size={40} className="text-slate-200" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Nenhuma Saída Ativa</h3>
+              <p className="text-slate-500 max-w-xs mx-auto text-sm font-medium">
+                Aguardando a liberação das próximas saídas para exibição no quadro.
+              </p>
+            </div>
+          </div>
+        )}
       </main>
       
-      <footer className="py-8 border-t bg-white/50 backdrop-blur-md mt-auto">
-        <div className="container mx-auto px-8 flex justify-between items-center">
+      <footer className="py-8 border-t border-slate-200 bg-white/50 backdrop-blur-sm mt-auto">
+        <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
           <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-xs font-black text-primary/60 uppercase tracking-widest">Conexão SESI Ativa</span>
+            <div className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Conexão Sesi Inteligente Ativa</span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">© {new Date().getFullYear()} SESI</span>
+          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">© {new Date().getFullYear()} SESI - FIEMG</span>
         </div>
       </footer>
     </div>
