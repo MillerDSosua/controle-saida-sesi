@@ -33,43 +33,48 @@ export default function OperatorPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
         <Tabs defaultValue="calls" className="space-y-6 sm:space-y-8" onValueChange={setActiveTab}>
-          {/* Navegação por Abas Refinada para Mobile */}
+          {/* Navegação por Abas Refinada para Mobile (Apenas ícones no celular) */}
           <div className="flex items-center justify-start sm:justify-center overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
             <TabsList className="flex w-max sm:w-auto apple-blur p-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm bg-white/50 backdrop-blur-md">
               <TabsTrigger 
                 value="calls" 
                 className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                title="Chamadas"
               >
-                <PhoneOutgoing size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Chamadas</span>
+                <PhoneOutgoing size={18} className="shrink-0" />
+                <span className="hidden sm:inline">Chamadas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="escolares" 
                 className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                title="Escolares"
               >
-                <Bus size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Escolares</span>
+                <Bus size={18} className="shrink-0" />
+                <span className="hidden sm:inline">Escolares</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="students" 
                 className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                title="Alunos"
               >
-                <GraduationCap size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Alunos</span>
+                <GraduationCap size={18} className="shrink-0" />
+                <span className="hidden sm:inline">Alunos</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="classes" 
                 className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                title="Turmas"
               >
-                <Users size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Turmas</span>
+                <Users size={18} className="shrink-0" />
+                <span className="hidden sm:inline">Turmas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
                 className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                title="Histórico"
               >
-                <History size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Histórico</span>
+                <History size={18} className="shrink-0" />
+                <span className="hidden sm:inline">Histórico</span>
               </TabsTrigger>
             </TabsList>
           </div>
