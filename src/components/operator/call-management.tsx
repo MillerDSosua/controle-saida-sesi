@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -121,39 +122,39 @@ export function CallManagement() {
   }, [students, searchTerm, selectedClass]);
 
   return (
-    <div className="space-y-8">
-      {/* Toolbar Normalizada */}
-      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Toolbar Normalizada Premium */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
             <Input 
               placeholder="Buscar aluno..." 
-              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-primary/10 transition-all" 
+              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-primary/10 transition-all font-medium" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
             />
           </div>
           <div className="w-full sm:w-64">
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-semibold focus:ring-2 focus:ring-primary/10 transition-all">
+              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-primary/10 transition-all">
                 <SelectValue placeholder="Todas as Turmas" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl shadow-xl border-slate-100">
-                <SelectItem value="all" className="font-medium">Todas as turmas</SelectItem>
-                {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-medium">{c.nome}</SelectItem>)}
+              <SelectContent className="rounded-2xl shadow-xl border-slate-100 p-1">
+                <SelectItem value="all" className="font-bold rounded-xl h-11">Todas as turmas</SelectItem>
+                {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-semibold rounded-xl h-11">{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
         
-        {/* Toggle View Mode Normalizado */}
+        {/* Toggle View Mode Premium */}
         <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
           <Button 
             variant="ghost" 
             onClick={() => handleSetViewMode("grid")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
               viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
@@ -163,7 +164,7 @@ export function CallManagement() {
             variant="ghost" 
             onClick={() => handleSetViewMode("list")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
               viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
@@ -179,21 +180,26 @@ export function CallManagement() {
             const isCalled = currentCall && currentCall.status === "Chamado";
             const isProcessing = processingIds.has(s.id);
             return (
-              <Card key={s.id} className={cn("premium-card transition-all h-[320px] flex flex-col justify-between overflow-hidden border-2", isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent")}>
+              <Card key={s.id} className={cn("premium-card h-[320px] flex flex-col justify-between overflow-hidden border-2", isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent")}>
                 <CardContent className="p-8 flex flex-col h-full justify-between items-center text-center">
                   <div className="space-y-4">
-                    <div className={cn("h-20 w-20 rounded-full mx-auto flex items-center justify-center border transition-colors", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
+                    <div className={cn("h-20 w-20 rounded-full mx-auto flex items-center justify-center border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200 scale-110" : "bg-slate-50 text-slate-300 border-slate-100")}>
                       {isProcessing ? <Loader2 className="animate-spin" size={32} /> : <User size={40} />}
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[3rem]">{s.nomeExibicao}</h3>
                       <div className="flex justify-center gap-2">
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest">{s.turmaNome}</Badge>
-                        {isCalled && <Badge className="bg-green-500 text-white text-[9px] font-black uppercase tracking-widest">Chamado</Badge>}
+                        <Badge variant="secondary" className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none">{s.turmaNome}</Badge>
+                        {isCalled && <Badge className="bg-green-500 text-white text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none shadow-sm">Chamado</Badge>}
                       </div>
                     </div>
                   </div>
-                  <Button variant={isCalled ? "destructive" : "default"} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-transform active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} disabled={isProcessing} onClick={() => handleToggleCall(s)}>
+                  <Button 
+                    variant={isCalled ? "destructive" : "default"} 
+                    className={cn("w-full h-12 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} 
+                    disabled={isProcessing} 
+                    onClick={() => handleToggleCall(s)}
+                  >
                     {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar Saída"}
                   </Button>
                 </CardContent>
@@ -208,17 +214,22 @@ export function CallManagement() {
             const isCalled = currentCall && currentCall.status === "Chamado";
             const isProcessing = processingIds.has(s.id);
             return (
-              <div key={s.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
+              <div key={s.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md hover:-translate-y-0.5 group", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center border shrink-0 transition-colors", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
+                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center border shrink-0 transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/20")}>
                     {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <User size={28} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate pr-4">{s.nomeExibicao}</h4>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.turmaNome}</span>
+                    <h4 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate pr-4">{s.nomeExibicao}</h4>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{s.turmaNome}</span>
                   </div>
                 </div>
-                <Button variant={isCalled ? "destructive" : "default"} className={cn("h-11 w-[90px] sm:w-[130px] rounded-xl font-black text-[10px] tracking-widest shadow-sm transition-transform active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} disabled={isProcessing} onClick={() => handleToggleCall(s)}>
+                <Button 
+                  variant={isCalled ? "destructive" : "default"} 
+                  className={cn("h-11 w-[90px] sm:w-[140px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
+                  disabled={isProcessing} 
+                  onClick={() => handleToggleCall(s)}
+                >
                   {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar"}
                 </Button>
               </div>

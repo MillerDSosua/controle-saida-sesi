@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -43,125 +44,123 @@ export function HistoryManagement() {
   });
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Toolbar Normalizada Premium */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <div className="relative flex-1 group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
             <Input 
-              placeholder="Buscar no histórico..." 
-              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all" 
+              placeholder="Buscar no histórico de hoje..." 
+              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
             />
           </div>
           <div className="w-full sm:w-64">
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-semibold focus:ring-2 focus:ring-primary/10 transition-all">
-                <SelectValue placeholder="Todas as turmas" />
+              <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-primary/10 transition-all">
+                <SelectValue placeholder="Todas as Turmas" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl shadow-xl border-slate-100">
-                <SelectItem value="all" className="font-medium">Todas as turmas</SelectItem>
-                {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-medium">{c.nome}</SelectItem>)}
+              <SelectContent className="rounded-2xl shadow-xl border-slate-100 p-1">
+                <SelectItem value="all" className="font-bold rounded-xl h-11">Todas as turmas</SelectItem>
+                {classes.map(c => <SelectItem key={c.id} value={c.id} className="font-semibold rounded-xl h-11">{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
-      </div>
-
-      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
-        <CardHeader className="flex flex-row items-center justify-between border-b px-6 sm:px-8 py-5">
-          <CardTitle className="text-sm sm:text-base font-black flex items-center gap-2 text-primary uppercase tracking-wider">
-            <HistoryIcon size={18} /> Atividade de Hoje
-          </CardTitle>
-          <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-widest px-3 py-1">
+        <div className="hidden lg:flex items-center gap-3 px-6 py-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <Badge variant="outline" className="bg-white border-slate-200 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] px-3 py-1 rounded-md shadow-xs">
             {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
           </Badge>
-        </CardHeader>
-        
+        </div>
+      </div>
+
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[2rem] animate-in fade-in duration-700">
         <div className="hidden md:block">
           <Table>
-            <TableHeader className="bg-slate-50/30">
+            <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest py-5 pl-8 text-slate-400">Chamada</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Envolvidos</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Horário</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right pr-8 text-slate-400">Operador</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] py-6 pl-8 text-slate-400">Chamada</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Envolvimento</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Horário</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Status</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-right pr-8 text-slate-400">Operador</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHistory.length > 0 ? (
                 filteredHistory.map((h) => (
-                  <TableRow key={h.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
-                    <TableCell className="py-4 pl-8">
-                      <div className="flex items-center gap-3">
-                        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center border", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10")}>
-                          {h.tipo === 'escolar' ? <Bus size={18} /> : <User size={18} />}
+                  <TableRow key={h.id} className="hover:bg-slate-50/50 transition-all duration-300 hover:-translate-y-0.5 group">
+                    <TableCell className="py-5 pl-8">
+                      <div className="flex items-center gap-4">
+                        <div className={cn("h-12 w-12 rounded-full flex items-center justify-center border transition-all duration-300", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10 group-hover:bg-primary group-hover:text-white")}>
+                          {h.tipo === 'escolar' ? <Bus size={20} /> : <User size={20} />}
                         </div>
-                        <span className="font-bold text-slate-900 tracking-tight">{h.nomeExibicao || h.escolarNome}</span>
+                        <span className="font-black text-lg text-slate-900 tracking-tight">{h.nomeExibicao || h.escolarNome}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <TableCell className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                       {h.tipo === 'escolar' ? "Escolar" : h.turmaNome}
                     </TableCell>
-                    <TableCell className="font-bold text-slate-600">
+                    <TableCell className="font-black text-slate-900 tabular-nums">
                       {h.dataHoraChamado ? format(h.dataHoraChamado.toDate(), "HH:mm") : "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none shadow-sm", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
+                      <Badge className={cn("font-black uppercase text-[9px] tracking-[0.15em] px-3 py-1 border-none shadow-sm rounded-md", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-400")}>
                         {h.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right pr-8 text-[9px] font-bold text-slate-300 uppercase tracking-wider">
+                    <TableCell className="text-right pr-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.15em]">
                       {h.chamadoPorEmail?.split('@')[0]}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20 text-slate-400 font-medium italic">Nenhuma atividade registrada.</TableCell>
+                  <TableCell colSpan={5} className="text-center py-24 text-slate-300 font-bold italic tracking-tight">Nenhuma atividade registrada no período.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
 
+        {/* MOBILE CARDS */}
         <div className="md:hidden divide-y divide-slate-100">
           {filteredHistory.length > 0 ? (
             filteredHistory.map((h) => (
-              <div key={h.id} className="p-5 space-y-4 hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm cursor-default">
+              <div key={h.id} className="p-6 space-y-5 hover:bg-slate-50/50 transition-all duration-200">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("h-12 w-12 rounded-full flex items-center justify-center border transition-colors", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10")}>
-                      {h.tipo === 'escolar' ? <Bus size={20} /> : <User size={20} />}
+                  <div className="flex items-center gap-4">
+                    <div className={cn("h-14 w-14 rounded-full flex items-center justify-center border transition-all shadow-sm", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10")}>
+                      {h.tipo === 'escolar' ? <Bus size={24} /> : <User size={24} />}
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-900 tracking-tight text-base">{h.nomeExibicao || h.escolarNome}</h4>
+                      <h4 className="font-black text-slate-900 tracking-tight text-xl">{h.nomeExibicao || h.escolarNome}</h4>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                           {h.tipo === 'escolar' ? "Transporte" : `Turma ${h.turmaNome}`}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <Badge className={cn("font-black uppercase text-[8px] tracking-widest px-2.5 py-0.5 border-none shadow-sm", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500")}>
+                  <Badge className={cn("font-black uppercase text-[9px] tracking-[0.15em] px-3 py-1 border-none shadow-sm rounded-md", h.status === "Chamado" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-400")}>
                     {h.status}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                  <div className="flex items-center gap-1.5 text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
-                    <Clock size={12} className="text-slate-400" />
-                    <span className="text-[10px] font-black tabular-nums">{h.dataHoraChamado ? format(h.dataHoraChamado.toDate(), "HH:mm") : "-"}</span>
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex items-center gap-2 text-primary bg-primary/5 px-3 py-1.5 rounded-xl">
+                    <Clock size={14} className="text-primary/60" />
+                    <span className="text-[11px] font-black tabular-nums tracking-tight">{h.dataHoraChamado ? format(h.dataHoraChamado.toDate(), "HH:mm") : "-"}</span>
                   </div>
-                  <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-                    Por: {h.chamadoPorEmail?.split('@')[0]}
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">
+                    OP: {h.chamadoPorEmail?.split('@')[0]}
                   </span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="py-20 text-center text-slate-300 font-medium italic">Nenhuma atividade.</div>
+            <div className="py-24 text-center text-slate-300 font-bold italic tracking-tight">Vazio.</div>
           )}
         </div>
       </Card>

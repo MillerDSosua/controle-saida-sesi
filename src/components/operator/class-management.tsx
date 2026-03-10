@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -96,13 +97,14 @@ export function ClassManagement() {
   const filteredClasses = classes.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <Input
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Toolbar Normalizada Premium */}
+      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+        <div className="relative w-full sm:max-w-md group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+          <input
             placeholder="Buscar turmas..."
-            className="pl-12 h-14 bg-slate-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
+            className="flex h-14 w-full rounded-2xl border-none bg-slate-50 pl-12 pr-4 text-base font-medium ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -112,11 +114,11 @@ export function ClassManagement() {
           if (!open) { setEditingClass(null); setName(""); }
         }}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
+            <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-10 font-black uppercase tracking-[0.2em] text-[11px] gap-2.5 transition-all active:scale-95">
               <Plus size={18} /> Nova Turma
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+          <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
             <div className="bg-primary px-8 py-10 text-white">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black tracking-tight">{editingClass ? "Editar Turma" : "Nova Turma"}</DialogTitle>
@@ -124,20 +126,20 @@ export function ClassManagement() {
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
               <div className="space-y-2">
-                <Label htmlFor="className" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome da Turma</Label>
-                <Input
+                <Label htmlFor="className" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome da Turma</Label>
+                <input
                   id="className"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: 1º Ano A"
                   required
                   disabled={isSubmitting}
-                  className="h-12 rounded-xl bg-slate-50 border-none text-base"
+                  className="flex h-12 w-full rounded-xl border-none bg-slate-50 px-4 text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                 />
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black">
-                  {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Turma"}
+                <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-[11px] uppercase tracking-[0.2em] font-black active:scale-95 transition-all">
+                  {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Registro"}
                 </Button>
               </DialogFooter>
             </form>
@@ -145,37 +147,37 @@ export function ClassManagement() {
         </Dialog>
       </div>
 
-      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[2rem] animate-in fade-in duration-700">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="py-5 pl-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome</TableHead>
-                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</TableHead>
+                <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome da Turma</TableHead>
+                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredClasses.length > 0 ? (
                 filteredClasses.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
-                    <TableCell className="py-4 pl-8 font-bold text-slate-900">{c.nome}</TableCell>
+                  <TableRow key={c.id} className="hover:bg-slate-50/50 transition-all duration-300 hover:-translate-y-0.5 group">
+                    <TableCell className="py-5 pl-8 font-black text-lg text-slate-900 tracking-tight">{c.nome}</TableCell>
                     <TableCell className="text-right pr-8">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-white hover:shadow-sm" onClick={() => {
+                      <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-white hover:shadow-sm" onClick={() => {
                           setEditingClass(c);
                           setName(c.nome);
                           setIsDialogOpen(true);
                         }}>
-                          <Edit2 size={16} className="text-slate-400 hover:text-primary" />
+                          <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-9 w-9 rounded-lg hover:bg-red-50" 
+                          className="h-9 w-9 rounded-xl hover:bg-red-50" 
                           disabled={isDeletingId === c.id}
                           onClick={() => handleDelete(c.id, c.nome)}
                         >
-                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500" />}
+                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />}
                         </Button>
                       </div>
                     </TableCell>
@@ -183,8 +185,8 @@ export function ClassManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-20 text-slate-400 font-medium italic">
-                    Nenhuma turma encontrada.
+                  <TableCell colSpan={2} className="text-center py-24 text-slate-300 font-bold italic tracking-tight">
+                    Nenhuma turma cadastrada.
                   </TableCell>
                 </TableRow>
               )}

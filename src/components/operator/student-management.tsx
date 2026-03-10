@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -220,41 +221,41 @@ export function StudentManagement() {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
-        <div className="relative w-full xl:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+        <div className="relative w-full xl:max-w-md group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
           <Input
             placeholder="Buscar alunos..."
-            className="pl-12 h-14 rounded-2xl bg-slate-50 border-none text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
+            className="pl-12 h-14 rounded-2xl bg-slate-50 border-none text-base font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 h-14 bg-slate-100/30 px-2 rounded-2xl border border-slate-100/50">
+          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 h-14 bg-slate-50 px-2 rounded-2xl border border-slate-100/50">
             <Button 
               variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-bold hover:bg-white hover:shadow-sm text-slate-600 gap-2 transition-all active:scale-95"
+              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-black hover:bg-white hover:shadow-sm text-slate-500 gap-2 transition-all active:scale-95"
               onClick={handleDownloadModel}
             >
               <Download size={16} />
-              <span className="text-[10px] uppercase tracking-wider">Modelo</span>
+              <span className="text-[10px] uppercase tracking-[0.15em]">Modelo</span>
             </Button>
             
             <Button 
               variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-bold hover:bg-white hover:shadow-sm text-slate-600 gap-2 transition-all active:scale-95"
+              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-black hover:bg-white hover:shadow-sm text-slate-500 gap-2 transition-all active:scale-95"
               onClick={handleExport}
             >
               <FileDown size={16} />
-              <span className="text-[10px] uppercase tracking-wider">Exportar</span>
+              <span className="text-[10px] uppercase tracking-[0.15em]">Exportar</span>
             </Button>
 
             <Button 
               variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl bg-white shadow-sm px-4 font-bold text-primary gap-2 transition-all active:scale-95"
+              className="flex-1 sm:flex-none h-10 rounded-xl bg-white shadow-sm px-4 font-black text-primary gap-2 transition-all active:scale-95"
               onClick={() => {
                 setImportStep("intro");
                 setImportFile(null);
@@ -263,7 +264,7 @@ export function StudentManagement() {
               }}
             >
               <FileUp size={16} />
-              <span className="text-[10px] uppercase tracking-wider">Importar</span>
+              <span className="text-[10px] uppercase tracking-[0.15em]">Importar</span>
             </Button>
           </div>
 
@@ -272,56 +273,56 @@ export function StudentManagement() {
             if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
+              <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
                 <Plus size={20} /> Novo Aluno
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+            <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
               <div className="bg-primary px-8 py-10 text-white">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
-                  <DialogDescription className="text-primary-foreground/70 font-medium">Dados do aluno para o sistema de chamada.</DialogDescription>
+                  <DialogDescription className="text-primary-foreground/70 font-medium">Dados cadastrais para o sistema de chamada.</DialogDescription>
                 </DialogHeader>
               </div>
               <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome de Exibição</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome de Exibição</Label>
                     <Input
                       value={formData.nomeExibicao}
                       onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
                       placeholder="Ex: Miller Daniel"
                       required
-                      className="h-12 rounded-xl bg-slate-50 border-none text-base"
+                      className="h-12 rounded-xl bg-slate-50 border-none text-base font-medium"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Turma</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</Label>
                     <Select value={formData.turmaId} onValueChange={(val) => setFormData({ ...formData, turmaId: val })}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base">
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
                         <SelectValue placeholder="Selecione a turma" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-none shadow-xl">
-                        {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg">{c.nome}</SelectItem>)}
+                      <SelectContent className="rounded-xl border-none shadow-xl p-1">
+                        {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg font-semibold">{c.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Escolar (Opcional)</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Escolar (Opcional)</Label>
                     <Select value={formData.escolarId || "none"} onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base">
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
                         <SelectValue placeholder="Sem escolar" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-none shadow-xl">
-                        <SelectItem value="none" className="h-11 rounded-lg">Uso individual</SelectItem>
-                        {escolares.map(e => <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg">{e.nome}</SelectItem>)}
+                      <SelectContent className="rounded-xl border-none shadow-xl p-1">
+                        <SelectItem value="none" className="h-11 rounded-lg font-semibold">Uso individual</SelectItem>
+                        {escolares.map(e => <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg font-semibold">{e.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black">
-                    {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Aluno"}
+                  <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">
+                    {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Cadastro"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -331,12 +332,12 @@ export function StudentManagement() {
       </div>
 
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-        <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none shadow-2xl max-w-[800px] w-[95vw] h-[80vh] flex flex-col">
+        <DialogContent className="rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl max-w-[800px] w-[95vw] h-[80vh] flex flex-col">
           <div className="bg-slate-900 px-8 py-10 text-white shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-3xl font-black tracking-tight">Importar Alunos</DialogTitle>
-                <DialogDescription className="text-slate-400 text-base">Cadastre múltiplos alunos via CSV.</DialogDescription>
+                <DialogDescription className="text-slate-400 text-base font-medium">Cadastre múltiplos registros via planilha CSV.</DialogDescription>
               </div>
               <FileUp size={32} className="opacity-20" />
             </div>
@@ -346,20 +347,20 @@ export function StudentManagement() {
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                      <Info size={16} className="text-primary" /> Instruções
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+                      <Info size={16} className="text-primary" /> Instruções de Uso
                     </h4>
-                    <ul className="space-y-3 text-sm text-slate-600">
-                      <li className="flex gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" /> Use arquivo CSV.</li>
-                      <li className="flex gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" /> Turmas devem existir.</li>
-                      <li className="flex gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" /> Siga o modelo padrão.</li>
+                    <ul className="space-y-3 text-sm text-slate-500 font-medium">
+                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize apenas arquivos no formato CSV.</li>
+                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> As turmas informadas devem existir no sistema.</li>
+                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Mantenha os cabeçalhos do modelo padrão.</li>
                     </ul>
                   </div>
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl p-8 bg-white group hover:border-primary/30 transition-all relative">
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative">
                     <FileUp size={32} className="text-slate-300 group-hover:scale-110 transition-transform mb-4" />
-                    <p className="text-sm font-bold text-slate-500">Selecione o arquivo CSV</p>
+                    <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o CSV</p>
                     <Input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    {importFile && <Badge className="mt-4 bg-primary/10 text-primary border-none">{importFile.name}</Badge>}
+                    {importFile && <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">{importFile.name}</Badge>}
                   </div>
                 </div>
               </div>
@@ -367,35 +368,39 @@ export function StudentManagement() {
             {importStep === "preview" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white p-4 rounded-2xl border text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Total</p>
+                  <div className="bg-white p-5 rounded-2xl border text-center shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total</p>
                     <p className="text-2xl font-black">{parsedRows.length}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-2xl border border-green-100 text-center">
-                    <p className="text-[10px] font-black uppercase text-green-500">Válidos</p>
+                  <div className="bg-white p-5 rounded-2xl border border-green-100 text-center shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-green-500 mb-1">Válidos</p>
                     <p className="text-2xl font-black text-green-600">{parsedRows.filter(r => r.isValid).length}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-2xl border border-red-100 text-center">
-                    <p className="text-[10px] font-black uppercase text-red-500">Erros</p>
+                  <div className="bg-white p-5 rounded-2xl border border-red-100 text-center shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Erros</p>
                     <p className="text-2xl font-black text-red-600">{parsedRows.filter(r => !r.isValid).length}</p>
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
                   <Table>
-                    <TableHeader className="bg-slate-50">
+                    <TableHeader className="bg-slate-50/50">
                       <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Aluno</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Turma</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest py-4">Aluno</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Turma</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {parsedRows.map((row, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="text-sm font-bold">{row.nomeExibicao}</TableCell>
-                          <TableCell className="text-sm font-medium">{row.turmaNome}</TableCell>
+                        <TableRow key={i} className="hover:bg-slate-50/30">
+                          <TableCell className="text-sm font-black text-slate-900 tracking-tight">{row.nomeExibicao}</TableCell>
+                          <TableCell className="text-sm font-bold text-slate-500">{row.turmaNome}</TableCell>
                           <TableCell>
-                            {row.isValid ? <Badge className="bg-green-500 text-[8px] font-black">OK</Badge> : <Badge variant="destructive" className="text-[8px] font-black">{row.error}</Badge>}
+                            {row.isValid ? (
+                              <Badge className="bg-green-500 text-white text-[8px] font-black tracking-widest border-none">VÁLIDO</Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-[8px] font-black tracking-widest border-none">{row.error?.toUpperCase()}</Badge>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -405,73 +410,76 @@ export function StudentManagement() {
               </div>
             )}
             {importStep === "success" && (
-              <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                <div className="h-20 w-20 bg-green-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-green-200">
-                  <CheckCircle2 size={40} />
+              <div className="flex flex-col items-center justify-center py-12 text-center space-y-5">
+                <div className="h-24 w-24 bg-green-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-green-200 animate-in zoom-in duration-500">
+                  <CheckCircle2 size={48} />
                 </div>
-                <h3 className="text-2xl font-black tracking-tight">Importação Finalizada</h3>
-                <Button onClick={() => setIsImportModalOpen(false)} className="rounded-xl h-12 px-8 gradient-primary">Fechar</Button>
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black tracking-tight text-slate-900">Sucesso Absoluto</h3>
+                  <p className="text-slate-500 font-medium">Os registros foram processados e salvos.</p>
+                </div>
+                <Button onClick={() => setIsImportModalOpen(false)} className="rounded-xl h-14 px-10 gradient-primary font-black uppercase tracking-widest active:scale-95 transition-all">Concluir</Button>
               </div>
             )}
           </div>
           <div className="bg-white border-t p-6 flex justify-between items-center shrink-0">
-            <Button variant="ghost" className="font-bold" onClick={() => setIsImportModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button variant="ghost" className="font-black text-[11px] uppercase tracking-widest text-slate-400 hover:text-slate-900" onClick={() => setIsImportModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
             <div className="flex gap-3">
-              {importStep === "intro" && <Button disabled={!importFile || isValidating} onClick={validateImport} className="h-12 rounded-xl gradient-primary px-8 font-black">{isValidating ? <Loader2 className="animate-spin" /> : "Validar"}</Button>}
-              {importStep === "preview" && <Button disabled={isSubmitting || !parsedRows.some(r => r.isValid)} onClick={executeImport} className="h-12 rounded-xl gradient-primary px-8 font-black">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Importação"}</Button>}
+              {importStep === "intro" && <Button disabled={!importFile || isValidating} onClick={validateImport} className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all">{isValidating ? <Loader2 className="animate-spin" /> : "Validar Arquivo"}</Button>}
+              {importStep === "preview" && <Button disabled={isSubmitting || !parsedRows.some(r => r.isValid)} onClick={executeImport} className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar e Importar"}</Button>}
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[2rem] animate-in fade-in duration-700">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="py-5 pl-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Aluno</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Turma</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transporte</TableHead>
-                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</TableHead>
+                <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aluno</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transporte</TableHead>
+                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm group">
-                    <TableCell className="py-4 pl-8">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0">
-                          <User size={18} />
+                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 hover:-translate-y-0.5 group">
+                    <TableCell className="py-5 pl-8">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
+                          <User size={20} />
                         </div>
-                        <span className="font-bold text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
+                        <span className="font-black text-lg tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-2.5 py-0.5 font-black text-[9px] uppercase tracking-wider">
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest rounded-md">
                         {s.turmaNome}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {s.escolarNome ? (
-                        <div className="flex items-center gap-2 text-slate-500">
-                          <Bus size={14} className="text-slate-300" />
-                          <span className="text-sm font-medium">{s.escolarNome}</span>
+                        <div className="flex items-center gap-2.5 text-slate-600 font-bold text-sm">
+                          <Bus size={14} className="text-orange-500/60" />
+                          <span>{s.escolarNome}</span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-slate-300 font-bold uppercase">Individual</span>
+                        <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Individual</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right pr-8">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-white hover:shadow-sm" onClick={() => {
+                      <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-white hover:shadow-sm" onClick={() => {
                           setEditingStudent(s);
                           setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
                           setIsDialogOpen(true);
                         }}>
                           <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-red-50" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-red-50" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
                           {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />}
                         </Button>
                       </div>
@@ -480,8 +488,8 @@ export function StudentManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-20 text-slate-400 font-medium italic">
-                    Nenhum aluno cadastrado.
+                  <TableCell colSpan={4} className="text-center py-24 text-slate-300 font-bold italic tracking-tight">
+                    Nenhum registro de aluno localizado.
                   </TableCell>
                 </TableRow>
               )}

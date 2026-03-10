@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -164,15 +165,15 @@ export function EscolarManagement() {
   const filteredEscolares = escolares.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-8">
-      {/* Toolbar Normalizada */}
-      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Toolbar Normalizada Premium */}
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
             <Input
               placeholder="Buscar escolares..."
-              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
+              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -182,36 +183,38 @@ export function EscolarManagement() {
             if (!open) { setEditingEscolar(null); setName(""); }
           }}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-transform active:scale-95">
+              <Button className="h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
                 <Plus size={18} /> Novo Escolar
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[32px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+            <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
               <div className="bg-primary px-8 py-10 text-white">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight">{editingEscolar ? "Editar Escolar" : "Novo Escolar"}</DialogTitle>
+                  <DialogTitle className="text-2xl font-black tracking-tight">
+                    {editingEscolar ? "Editar Escolar" : "Novo Escolar"}
+                  </DialogTitle>
                 </DialogHeader>
               </div>
               <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome do Escolar / Motorista</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome do Escolar / Motorista</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Escolar do Cássio" required className="h-12 rounded-xl bg-slate-50 border-none text-base" />
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="w-full h-12 rounded-xl gradient-primary text-base font-black">Salvar Cadastro</Button>
+                  <Button type="submit" className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">Salvar Cadastro</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Toggle View Mode Normalizado */}
+        {/* Toggle View Mode Premium */}
         <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
           <Button 
             variant="ghost" 
             onClick={() => handleSetViewMode("grid")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
               viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
@@ -221,7 +224,7 @@ export function EscolarManagement() {
             variant="ghost" 
             onClick={() => handleSetViewMode("list")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-bold text-[10px] uppercase tracking-widest", 
+              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
               viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
@@ -240,28 +243,35 @@ export function EscolarManagement() {
 
             return (
               <Card key={e.id} className={cn("premium-card group border-2 transition-all h-[320px] flex flex-col justify-between overflow-hidden", isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent")}>
-                <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 bg-white shadow-sm" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
-                    <Edit2 size={14} className="text-primary" />
+                <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 bg-white shadow-sm hover:text-primary rounded-lg" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
+                    <Edit2 size={14} />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 bg-white shadow-sm" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
-                    {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-destructive" />}
+                  <Button variant="ghost" size="icon" className="h-9 w-9 bg-white shadow-sm hover:text-red-500 rounded-lg" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
+                    {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} />}
                   </Button>
                 </div>
                 <CardContent className="p-8 flex flex-col h-full justify-between items-center text-center">
                   <div className="space-y-4 w-full">
-                    <div className={cn("h-20 w-20 rounded-[28px] mx-auto flex items-center justify-center transition-all", isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300")}>
+                    <div className={cn("h-20 w-20 rounded-[2rem] mx-auto flex items-center justify-center transition-all duration-300", isCalled ? "bg-green-100 text-green-600 scale-110" : "bg-slate-50 text-slate-300")}>
                       {isProcessing ? <Loader2 className="animate-spin" size={32} /> : <Bus size={40} />}
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[3rem] text-center w-full">{e.nome}</h3>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[3rem]">{e.nome}</h3>
                       <div className="flex flex-wrap items-center justify-center gap-2">
-                        <Badge variant="secondary" className="bg-orange-50 text-orange-600 text-[10px] font-black tracking-widest">ESCOLAR</Badge>
-                        <Badge variant="outline" className="text-slate-400 text-[10px] font-black tracking-widest"><Users size={10} className="mr-1" /> {studentCount}</Badge>
+                        <Badge variant="secondary" className="bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none">ESCOLAR</Badge>
+                        <Badge variant="outline" className="text-slate-400 text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-slate-100 bg-white shadow-xs">
+                          <Users size={10} className="mr-1.5" /> {studentCount}
+                        </Badge>
                       </div>
                     </div>
                   </div>
-                  <Button variant={isCalled ? "destructive" : "default"} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-transform active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
+                  <Button 
+                    variant={isCalled ? "destructive" : "default"} 
+                    className={cn("w-full h-12 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} 
+                    disabled={isProcessing} 
+                    onClick={() => handleToggleCall(e)}
+                  >
                     {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar Saída"}
                   </Button>
                 </CardContent>
@@ -278,29 +288,34 @@ export function EscolarManagement() {
             const studentCount = students.filter(s => s.escolarId === e.id).length;
 
             return (
-              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
+              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md hover:-translate-y-0.5 group", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-colors", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
+                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/20")}>
                     {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate pr-2 sm:pr-4">{e.nome}</h4>
+                    <h4 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate pr-4">{e.nome}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-widest">Escolar</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">| {studentCount} Alunos</span>
+                      <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-[0.2em]">Escolar</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">| {studentCount} Alunos</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="hidden sm:flex items-center gap-1 mr-2">
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
-                      <Edit2 size={16} className="text-slate-400" />
+                  <div className="hidden sm:flex items-center gap-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-slate-50" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
+                      <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
-                      <Trash2 size={16} className="text-slate-300" />
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-red-50" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
+                      <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />
                     </Button>
                   </div>
-                  <Button variant={isCalled ? "destructive" : "default"} className={cn("h-11 w-[90px] sm:w-[130px] rounded-xl font-black text-[10px] tracking-widest shadow-sm transition-transform active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} disabled={isProcessing} onClick={() => handleToggleCall(e)}>
+                  <Button 
+                    variant={isCalled ? "destructive" : "default"} 
+                    className={cn("h-11 w-[90px] sm:w-[140px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
+                    disabled={isProcessing} 
+                    onClick={() => handleToggleCall(e)}
+                  >
                     {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar"}
                   </Button>
                 </div>
