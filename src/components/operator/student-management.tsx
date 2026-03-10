@@ -177,7 +177,6 @@ export function StudentManagement() {
       setImportFile(file);
       setImportStep("intro");
       setIsImportModalOpen(true);
-      // Reset input to allow selecting same file again
       e.target.value = '';
     }
   };
@@ -211,24 +210,37 @@ export function StudentManagement() {
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
+        // Função de normalização inteligente para comparação tolerante
+        const normalize = (val: string) => {
+          if (!val) return "";
+          return val.toString()
+            .toUpperCase()
+            .replace(/[\s°º-]/g, '') // Remove espaços, °, º e hífen
+            .trim();
+        };
+
         const rows = json.map((rowData: any, index) => {
           const nome = rowData.nomeExibicao || rowData["nomeExibicao"] || "";
-          const turma = rowData.turma || rowData["turma"] || "";
-          const escolar = rowData.escolar || rowData["escolar"] || "";
+          const turmaRaw = rowData.turma || rowData["turma"] || "";
+          const escolarRaw = rowData.escolar || rowData["escolar"] || "";
 
+          const normalizedImportTurma = normalize(turmaRaw.toString());
+          
+          // Busca a turma ignorando variações de escrita (ex: 6A, 6°A, 6-A)
           const targetClass = classes.find(c => 
-            c.nome.toLowerCase().trim() === turma.toString().toLowerCase().trim()
+            normalize(c.nome) === normalizedImportTurma
           );
           
-          const targetEscolar = escolar 
-            ? escolares.find(e => e.nome.toLowerCase().trim() === escolar.toString().toLowerCase().trim()) 
+          // Busca o escolar ignorando variações de escrita
+          const targetEscolar = escolarRaw 
+            ? escolares.find(e => normalize(e.nome) === normalize(escolarRaw.toString())) 
             : null;
 
           return {
             id: index,
             nomeExibicao: nome,
-            turmaNome: turma,
-            escolarNome: escolar,
+            turmaNome: targetClass ? targetClass.nome : turmaRaw, // Usa o nome oficial se encontrar
+            escolarNome: targetEscolar ? targetEscolar.nome : (escolarRaw || ""),
             turmaId: targetClass?.id || null,
             escolarId: targetEscolar?.id || null,
             isValid: !!(nome && targetClass),
@@ -325,7 +337,6 @@ export function StudentManagement() {
                 <FileUp size={14} /> Importar
               </Button>
 
-              {/* Hidden file input for toolbar button */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -430,7 +441,6 @@ export function StudentManagement() {
                   >
                     <FileUp size={32} className="text-slate-300 transition-transform mb-4" />
                     <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o arquivo</p>
-                    {/* Input to handle clicks and manual file picking */}
                     <input 
                       type="file" 
                       accept=".xlsx,.xls,.csv" 
