@@ -266,8 +266,8 @@ export function EscolarManagement() {
                 </div>
                 <CardContent className="p-6 sm:p-8 flex flex-col h-full justify-between items-center text-center">
                   <div className="space-y-4 sm:space-y-6 w-full mt-2 sm:mt-0">
-                    <div className={cn("h-16 w-16 sm:h-20 sm:w-20 rounded-[1.5rem] sm:rounded-[2rem] mx-auto flex items-center justify-center transition-all duration-300", isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300")}>
-                      {isProcessing ? <Loader2 className="animate-spin" size={28} /> : <Bus size={32} className="sm:w-10 sm:h-10" />}
+                    <div className={cn("h-12 w-12 sm:h-20 sm:w-20 rounded-[1.25rem] sm:rounded-[2rem] mx-auto flex items-center justify-center transition-all duration-300", isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300")}>
+                      {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={24} className="sm:w-10 sm:h-10 opacity-70 sm:opacity-100" />}
                     </div>
                     <div className="space-y-2 sm:space-y-3">
                       <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem] px-2">{e.nome}</h3>
@@ -301,10 +301,10 @@ export function EscolarManagement() {
             const studentCount = students.filter(s => s.escolarId === e.id).length;
 
             return (
-              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:bg-slate-50/10", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
-                    {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
+              <div key={e.id} className={cn("flex items-center justify-between p-3 sm:p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:bg-slate-50/10", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
+                    {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Bus size={24} className="sm:size-28 opacity-60 sm:opacity-100" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate pr-2 sm:pr-4">{e.nome}</h4>
@@ -315,12 +315,12 @@ export function EscolarManagement() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <div className="flex items-center gap-1 sm:gap-2 mr-1 sm:mr-2">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all rounded-xl" 
+                      className="h-8 w-8 sm:h-9 sm:w-9 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all rounded-xl" 
                       onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}
                       title="Editar"
                     >
@@ -329,7 +329,7 @@ export function EscolarManagement() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
+                      className="h-8 w-8 sm:h-9 sm:w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
                       disabled={isDeletingId === e.id} 
                       onClick={() => handleDelete(e.id, e.nome)}
                       title="Excluir"
@@ -339,11 +339,11 @@ export function EscolarManagement() {
                   </div>
                   <Button 
                     variant={isCalled ? "destructive" : "default"} 
-                    className={cn("h-10 w-[90px] sm:w-[120px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
+                    className={cn("h-10 w-[80px] sm:w-[120px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
                     disabled={isProcessing} 
                     onClick={() => handleToggleCall(e)}
                   >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Cancelar" : "Chamar"}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : isCalled ? "Canc" : "Chamar"}
                   </Button>
                 </div>
               </div>
