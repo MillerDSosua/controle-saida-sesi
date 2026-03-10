@@ -219,7 +219,11 @@ export function CallManagement() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate pr-4">{s.nomeExibicao}</h4>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{s.turmaNome}</span>
+                    <div className="mt-1">
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-2 py-0.5 font-black text-[9px] uppercase tracking-widest rounded-md">
+                        {s.turmaNome}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
                 <Button 
