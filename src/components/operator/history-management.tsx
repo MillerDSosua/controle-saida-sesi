@@ -44,8 +44,7 @@ export function HistoryManagement() {
 
   return (
     <div className="space-y-8">
-      {/* Toolbar Normalizada - Mesma estrutura das outras abas */}
-      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -70,7 +69,7 @@ export function HistoryManagement() {
         </div>
       </div>
 
-      <Card className="premium-card overflow-hidden border-none shadow-sm bg-white">
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
         <CardHeader className="flex flex-row items-center justify-between border-b px-6 sm:px-8 py-5">
           <CardTitle className="text-sm sm:text-base font-black flex items-center gap-2 text-primary uppercase tracking-wider">
             <HistoryIcon size={18} /> Atividade de Hoje
@@ -80,7 +79,6 @@ export function HistoryManagement() {
           </Badge>
         </CardHeader>
         
-        {/* VIEW DESKTOP: TABELA */}
         <div className="hidden md:block">
           <Table>
             <TableHeader className="bg-slate-50/30">
@@ -95,7 +93,7 @@ export function HistoryManagement() {
             <TableBody>
               {filteredHistory.length > 0 ? (
                 filteredHistory.map((h) => (
-                  <TableRow key={h.id} className="hover:bg-slate-50/30 transition-colors">
+                  <TableRow key={h.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
                     <TableCell className="py-4 pl-8">
                       <div className="flex items-center gap-3">
                         <div className={cn("h-10 w-10 rounded-full flex items-center justify-center border", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10")}>
@@ -129,11 +127,10 @@ export function HistoryManagement() {
           </Table>
         </div>
 
-        {/* VIEW MOBILE: CARDS */}
         <div className="md:hidden divide-y divide-slate-100">
           {filteredHistory.length > 0 ? (
             filteredHistory.map((h) => (
-              <div key={h.id} className="p-5 space-y-4">
+              <div key={h.id} className="p-5 space-y-4 hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm cursor-default">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn("h-12 w-12 rounded-full flex items-center justify-center border transition-colors", h.tipo === 'escolar' ? "bg-orange-50 text-orange-500 border-orange-100" : "bg-primary/5 text-primary border-primary/10")}>

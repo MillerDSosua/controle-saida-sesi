@@ -221,8 +221,7 @@ export function StudentManagement() {
 
   return (
     <div className="space-y-8">
-      {/* Toolbar Normalizada */}
-      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
         <div className="relative w-full xl:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <Input
@@ -234,7 +233,6 @@ export function StudentManagement() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          {/* Ações de Importação/Exportação */}
           <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 h-14 bg-slate-100/30 px-2 rounded-2xl border border-slate-100/50">
             <Button 
               variant="ghost" 
@@ -269,7 +267,6 @@ export function StudentManagement() {
             </Button>
           </div>
 
-          {/* Botão Novo Aluno */}
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
@@ -279,7 +276,7 @@ export function StudentManagement() {
                 <Plus size={20} /> Novo Aluno
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[32px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+            <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
               <div className="bg-primary px-8 py-10 text-white">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
@@ -427,7 +424,7 @@ export function StudentManagement() {
         </DialogContent>
       </Dialog>
 
-      <Card className="premium-card overflow-hidden border-none shadow-sm bg-white">
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50/50">
@@ -441,7 +438,7 @@ export function StudentManagement() {
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50/30 group">
+                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm group">
                     <TableCell className="py-4 pl-8">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0">

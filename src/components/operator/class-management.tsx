@@ -97,8 +97,7 @@ export function ClassManagement() {
 
   return (
     <div className="space-y-8">
-      {/* Toolbar Normalizada */}
-      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
         <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <Input
@@ -117,7 +116,7 @@ export function ClassManagement() {
               <Plus size={18} /> Nova Turma
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-[32px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+          <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
             <div className="bg-primary px-8 py-10 text-white">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black tracking-tight">{editingClass ? "Editar Turma" : "Nova Turma"}</DialogTitle>
@@ -146,7 +145,7 @@ export function ClassManagement() {
         </Dialog>
       </div>
 
-      <Card className="premium-card overflow-hidden border-none shadow-sm bg-white">
+      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[32px]">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50/50">
@@ -158,7 +157,7 @@ export function ClassManagement() {
             <TableBody>
               {filteredClasses.length > 0 ? (
                 filteredClasses.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-slate-50/30">
+                  <TableRow key={c.id} className="hover:bg-slate-50/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
                     <TableCell className="py-4 pl-8 font-bold text-slate-900">{c.nome}</TableCell>
                     <TableCell className="text-right pr-8">
                       <div className="flex justify-end gap-1">
