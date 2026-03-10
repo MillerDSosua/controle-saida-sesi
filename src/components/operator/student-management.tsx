@@ -23,8 +23,9 @@ import {
   Download, 
   CheckCircle2, 
   Loader2,
-  Info
-} from "lucide-react";
+  Info,
+  Bus
+} from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -219,106 +220,108 @@ export function StudentManagement() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex flex-col xl:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-        <div className="relative w-full xl:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <Input
-            placeholder="Buscar alunos..."
-            className="pl-10 h-11 rounded-xl bg-slate-50 border-none text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+        <div className="flex flex-col xl:flex-row gap-5 items-center justify-between">
+          <div className="relative w-full xl:max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Input
+              placeholder="Buscar alunos..."
+              className="pl-10 h-11 rounded-xl bg-slate-50 border-none text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
-          <Button 
-            variant="ghost" 
-            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-            onClick={handleDownloadModel}
-          >
-            <Download size={14} /> Modelo
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-            onClick={handleExport}
-          >
-            <FileDown size={14} /> Exportar
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
+            <Button 
+              variant="ghost" 
+              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+              onClick={handleDownloadModel}
+            >
+              <Download size={14} /> Modelo
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+              onClick={handleExport}
+            >
+              <FileDown size={14} /> Exportar
+            </Button>
 
-          <Button 
-            variant="ghost" 
-            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-primary gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-            onClick={() => {
-              setImportStep("intro");
-              setImportFile(null);
-              setParsedRows([]);
-              setIsImportModalOpen(true);
-            }}
-          >
-            <FileUp size={14} /> Importar
-          </Button>
+            <Button 
+              variant="ghost" 
+              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-primary gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+              onClick={() => {
+                setImportStep("intro");
+                setImportFile(null);
+                setParsedRows([]);
+                setIsImportModalOpen(true);
+              }}
+            >
+              <FileUp size={14} /> Importar
+            </Button>
 
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
-          }}>
-            <DialogTrigger asChild>
-              <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 transition-all active:scale-95 text-[11px] uppercase tracking-wider">
-                <Plus size={18} /> Novo Aluno
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
-              <div className="bg-primary px-8 py-10 text-white">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
-                </DialogHeader>
-              </div>
-              <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome de Exibição</Label>
-                    <Input
-                      value={formData.nomeExibicao}
-                      onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
-                      placeholder="Ex: Miller Daniel"
-                      required
-                      className="h-12 rounded-xl bg-slate-50 border-none text-base font-medium"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</Label>
-                    <Select value={formData.turmaId} onValueChange={(val) => setFormData({ ...formData, turmaId: val })}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
-                        <SelectValue placeholder="Selecione a turma" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-none shadow-xl p-1">
-                        {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg font-semibold">{c.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Escolar (Opcional)</Label>
-                    <Select value={formData.escolarId || "none"} onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
-                        <SelectValue placeholder="Sem escolar" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-none shadow-xl p-1">
-                        <SelectItem value="none" className="h-11 rounded-lg font-semibold">Uso individual</SelectItem>
-                        {escolares.map(e => <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg font-semibold">{e.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
+            }}>
+              <DialogTrigger asChild>
+                <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 transition-all active:scale-95 text-[11px] uppercase tracking-wider">
+                  <Plus size={18} /> Novo Aluno
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
+                <div className="bg-primary px-8 py-10 text-white">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
+                  </DialogHeader>
                 </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">
-                    {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Cadastro"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome de Exibição</Label>
+                      <Input
+                        value={formData.nomeExibicao}
+                        onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
+                        placeholder="Ex: Miller Daniel"
+                        required
+                        className="h-12 rounded-xl bg-slate-50 border-none text-base font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</Label>
+                      <Select value={formData.turmaId} onValueChange={(val) => setFormData({ ...formData, turmaId: val })}>
+                        <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
+                          <SelectValue placeholder="Selecione a turma" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-none shadow-xl p-1">
+                          {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg font-semibold">{c.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Escolar (Opcional)</Label>
+                      <Select value={formData.escolarId || "none"} onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}>
+                        <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
+                          <SelectValue placeholder="Sem escolar" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-none shadow-xl p-1">
+                          <SelectItem value="none" className="h-11 rounded-lg font-semibold">Uso individual</SelectItem>
+                          {escolares.map(e => <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg font-semibold">{e.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">
+                      {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Cadastro"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
 
@@ -375,11 +378,13 @@ export function StudentManagement() {
                 <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest py-4">Aluno</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Turma</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                      </TableRow>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest py-4">Aluno</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Turma</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
                     </TableHeader>
                     <TableBody>
                       {parsedRows.map((row, i) => (
@@ -423,71 +428,69 @@ export function StudentManagement() {
         </DialogContent>
       </Dialog>
 
-      <Card className="overflow-hidden border border-slate-100 shadow-sm bg-white rounded-[2rem] animate-in fade-in duration-700">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow>
-                <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aluno</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transporte</TableHead>
-                <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 group">
-                    <TableCell className="py-4 pl-8">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
-                          <User size={18} />
-                        </div>
-                        <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow>
+              <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aluno</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transporte</TableHead>
+              <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredStudents.length > 0 ? (
+              filteredStudents.map((s) => (
+                <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 group border-b border-slate-50 last:border-0">
+                  <TableCell className="py-4 pl-8">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
+                        <User size={18} />
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest rounded-md">
-                        {s.turmaNome}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {s.escolarNome ? (
-                        <div className="flex items-center gap-2.5 text-slate-600 font-bold text-sm">
-                          <Bus size={14} className="text-orange-500/60" />
-                          <span>{s.escolarNome}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Individual</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right pr-8">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
-                          setEditingStudent(s);
-                          setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
-                          setIsDialogOpen(true);
-                        }}>
-                          <Edit2 size={14} className="text-slate-400 hover:text-primary transition-colors" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
-                          {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-slate-300 hover:text-red-500 transition-colors" />}
-                        </Button>
+                      <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest rounded-md">
+                      {s.turmaNome}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {s.escolarNome ? (
+                      <div className="flex items-center gap-2.5 text-slate-600 font-bold text-sm">
+                        <Bus size={14} className="text-orange-500/60" />
+                        <span>{s.escolarNome}</span>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-20 text-slate-300 font-bold italic tracking-tight">
-                    Nenhum registro de aluno localizado.
+                    ) : (
+                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Individual</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right pr-8">
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
+                        setEditingStudent(s);
+                        setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
+                        setIsDialogOpen(true);
+                      }}>
+                        <Edit2 size={14} className="text-slate-400 hover:text-primary transition-colors" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
+                        {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-slate-300 hover:text-red-500 transition-colors" />}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-20 text-slate-300 font-bold italic tracking-tight">
+                  Nenhum registro de aluno localizado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
