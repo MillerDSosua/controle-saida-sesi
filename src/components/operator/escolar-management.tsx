@@ -8,10 +8,10 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Bus, PhoneOutgoing, XCircle, Loader2, Users, AlertCircle, LayoutGrid, List } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Bus, Loader2, Users, LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -67,6 +67,7 @@ export function EscolarManagement() {
           callsMap[data.escolarId] = { id: d.id, ...data };
         }
       });
+      callsMap;
       setCalls(callsMap);
     });
 
@@ -166,14 +167,13 @@ export function EscolarManagement() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Toolbar Normalizada Premium */}
       <div className="flex flex-col lg:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <Input
               placeholder="Buscar escolares..."
-              className="pl-12 h-14 bg-slate-50 border-none rounded-2xl text-base focus-visible:ring-2 focus-visible:ring-primary/10 transition-all font-medium"
+              className="pl-10 h-11 bg-slate-50 border-none rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-primary/10 transition-all font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -183,8 +183,8 @@ export function EscolarManagement() {
             if (!open) { setEditingEscolar(null); setName(""); }
           }}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
-                <Plus size={18} /> Novo Escolar
+              <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 transition-all active:scale-95 text-[11px] uppercase tracking-wider">
+                <Plus size={16} /> Novo Escolar
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
@@ -208,27 +208,26 @@ export function EscolarManagement() {
           </Dialog>
         </div>
 
-        {/* Toggle View Mode Premium */}
-        <div className="flex items-center bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 h-14 w-full lg:w-auto">
+        <div className="flex items-center bg-slate-100/50 p-1 rounded-xl border border-slate-100 h-10 w-full lg:w-auto">
           <Button 
             variant="ghost" 
             onClick={() => handleSetViewMode("grid")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
+              "flex-1 lg:flex-none rounded-lg h-8 px-4 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em]", 
               viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
-            <LayoutGrid size={16} /> Quadro
+            <LayoutGrid size={14} /> Quadro
           </Button>
           <Button 
             variant="ghost" 
             onClick={() => handleSetViewMode("list")} 
             className={cn(
-              "flex-1 lg:flex-none rounded-xl h-11 px-6 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em] active:scale-95", 
+              "flex-1 lg:flex-none rounded-lg h-8 px-4 gap-2 transition-all font-black text-[10px] uppercase tracking-[0.15em]", 
               viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:bg-white/50"
             )}
           >
-            <List size={16} /> Lista
+            <List size={14} /> Lista
           </Button>
         </div>
       </div>
@@ -242,8 +241,8 @@ export function EscolarManagement() {
             const studentCount = students.filter(s => s.escolarId === e.id).length;
 
             return (
-              <Card key={e.id} className={cn("premium-card group border-2 transition-all h-[320px] flex flex-col justify-between overflow-hidden", isCalled ? "border-green-500/30 bg-green-50/10" : "border-transparent")}>
-                <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
+              <Card key={e.id} className={cn("rounded-[2rem] border border-slate-100 bg-white shadow-sm transition-all duration-300 h-[320px] flex flex-col justify-between overflow-hidden relative", isCalled ? "border-green-500/30 bg-green-50/10" : "hover:bg-slate-50/30 hover:shadow-md")}>
+                <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 hover:opacity-100 group-hover:opacity-100 transition-all z-10">
                   <Button variant="ghost" size="icon" className="h-9 w-9 bg-white shadow-sm hover:text-primary rounded-lg" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
                     <Edit2 size={14} />
                   </Button>
@@ -253,7 +252,7 @@ export function EscolarManagement() {
                 </div>
                 <CardContent className="p-8 flex flex-col h-full justify-between items-center text-center">
                   <div className="space-y-4 w-full">
-                    <div className={cn("h-20 w-20 rounded-[2rem] mx-auto flex items-center justify-center transition-all duration-300", isCalled ? "bg-green-100 text-green-600 scale-110" : "bg-slate-50 text-slate-300")}>
+                    <div className={cn("h-20 w-20 rounded-[2rem] mx-auto flex items-center justify-center transition-all duration-300", isCalled ? "bg-green-100 text-green-600" : "bg-slate-50 text-slate-300")}>
                       {isProcessing ? <Loader2 className="animate-spin" size={32} /> : <Bus size={40} />}
                     </div>
                     <div className="space-y-2">
@@ -268,7 +267,7 @@ export function EscolarManagement() {
                   </div>
                   <Button 
                     variant={isCalled ? "destructive" : "default"} 
-                    className={cn("w-full h-12 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} 
+                    className={cn("w-full h-11 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95", !isCalled ? "gradient-primary" : "bg-red-500")} 
                     disabled={isProcessing} 
                     onClick={() => handleToggleCall(e)}
                   >
@@ -288,9 +287,9 @@ export function EscolarManagement() {
             const studentCount = students.filter(s => s.escolarId === e.id).length;
 
             return (
-              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:shadow-md hover:-translate-y-0.5 group", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
+              <div key={e.id} className={cn("flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:bg-slate-50/50", isCalled && "border-l-4 border-l-green-500 bg-green-50/10")}>
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/20")}>
+                  <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300", isCalled ? "bg-green-100 text-green-600 border-green-200" : "bg-slate-50 text-slate-300 border-slate-100")}>
                     {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <Bus size={28} />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -302,17 +301,17 @@ export function EscolarManagement() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="hidden sm:flex items-center gap-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-slate-50" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
-                      <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
+                  <div className="hidden sm:flex items-center gap-1 mr-2 opacity-0 hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}>
+                      <Edit2 size={14} className="text-slate-400" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-red-50" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
-                      <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={isDeletingId === e.id} onClick={() => handleDelete(e.id, e.nome)}>
+                      <Trash2 size={14} className="text-slate-300" />
                     </Button>
                   </div>
                   <Button 
                     variant={isCalled ? "destructive" : "default"} 
-                    className={cn("h-11 w-[90px] sm:w-[140px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
+                    className={cn("h-10 w-[90px] sm:w-[120px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95", !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white")} 
                     disabled={isProcessing} 
                     onClick={() => handleToggleCall(e)}
                   >

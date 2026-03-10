@@ -29,7 +29,7 @@ export function ClassManagement() {
     const q = query(collection(db, "classes"), orderBy("nome", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => console.error("[ClassManagement] Erro no listener:", error));
+    });
     return () => unsubscribe();
   }, [db]);
 
@@ -98,13 +98,12 @@ export function ClassManagement() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Toolbar Normalizada Premium */}
       <div className="flex flex-col sm:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-        <div className="relative w-full sm:max-w-md group">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             placeholder="Buscar turmas..."
-            className="flex h-14 w-full rounded-2xl border-none bg-slate-50 pl-12 pr-4 text-base font-medium ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
+            className="flex h-11 w-full rounded-xl border-none bg-slate-50 pl-10 pr-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/10 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -114,8 +113,8 @@ export function ClassManagement() {
           if (!open) { setEditingClass(null); setName(""); }
         }}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-10 font-black uppercase tracking-[0.2em] text-[11px] gap-2.5 transition-all active:scale-95">
-              <Plus size={18} /> Nova Turma
+            <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black uppercase tracking-wider text-[11px] gap-2 transition-all active:scale-95">
+              <Plus size={16} /> Nova Turma
             </Button>
           </DialogTrigger>
           <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
@@ -159,25 +158,25 @@ export function ClassManagement() {
             <TableBody>
               {filteredClasses.length > 0 ? (
                 filteredClasses.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-slate-50/50 transition-all duration-300 hover:-translate-y-0.5 group">
-                    <TableCell className="py-5 pl-8 font-black text-lg text-slate-900 tracking-tight">{c.nome}</TableCell>
+                  <TableRow key={c.id} className="hover:bg-slate-50/50 transition-all duration-300">
+                    <TableCell className="py-4 pl-8 font-black text-lg text-slate-900 tracking-tight">{c.nome}</TableCell>
                     <TableCell className="text-right pr-8">
-                      <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-white hover:shadow-sm" onClick={() => {
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
                           setEditingClass(c);
                           setName(c.nome);
                           setIsDialogOpen(true);
                         }}>
-                          <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
+                          <Edit2 size={14} className="text-slate-400 hover:text-primary transition-colors" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-9 w-9 rounded-xl hover:bg-red-50" 
+                          className="h-8 w-8 rounded-lg" 
                           disabled={isDeletingId === c.id}
                           onClick={() => handleDelete(c.id, c.nome)}
                         >
-                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />}
+                          {isDeletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-slate-300 hover:text-red-500 transition-colors" />}
                         </Button>
                       </div>
                     </TableCell>
@@ -185,7 +184,7 @@ export function ClassManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-24 text-slate-300 font-bold italic tracking-tight">
+                  <TableCell colSpan={2} className="text-center py-20 text-slate-300 font-bold italic tracking-tight">
                     Nenhuma turma cadastrada.
                   </TableCell>
                 </TableRow>

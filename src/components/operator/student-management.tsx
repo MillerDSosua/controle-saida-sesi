@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, writeBatch } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
@@ -18,15 +18,12 @@ import {
   Trash2, 
   Search, 
   User, 
-  Bus, 
   FileUp, 
   FileDown, 
   Download, 
   CheckCircle2, 
-  AlertCircle, 
   Loader2,
-  Info,
-  X
+  Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -222,66 +219,60 @@ export function StudentManagement() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-        <div className="relative w-full xl:max-w-md group">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+      <div className="flex flex-col xl:flex-row gap-5 items-center justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+        <div className="relative w-full xl:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <Input
             placeholder="Buscar alunos..."
-            className="pl-12 h-14 rounded-2xl bg-slate-50 border-none text-base font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
+            className="pl-10 h-11 rounded-xl bg-slate-50 border-none text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 h-14 bg-slate-50 px-2 rounded-2xl border border-slate-100/50">
-            <Button 
-              variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-black hover:bg-white hover:shadow-sm text-slate-500 gap-2 transition-all active:scale-95"
-              onClick={handleDownloadModel}
-            >
-              <Download size={16} />
-              <span className="text-[10px] uppercase tracking-[0.15em]">Modelo</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl px-4 font-black hover:bg-white hover:shadow-sm text-slate-500 gap-2 transition-all active:scale-95"
-              onClick={handleExport}
-            >
-              <FileDown size={16} />
-              <span className="text-[10px] uppercase tracking-[0.15em]">Exportar</span>
-            </Button>
+        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
+          <Button 
+            variant="ghost" 
+            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+            onClick={handleDownloadModel}
+          >
+            <Download size={14} /> Modelo
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+            onClick={handleExport}
+          >
+            <FileDown size={14} /> Exportar
+          </Button>
 
-            <Button 
-              variant="ghost" 
-              className="flex-1 sm:flex-none h-10 rounded-xl bg-white shadow-sm px-4 font-black text-primary gap-2 transition-all active:scale-95"
-              onClick={() => {
-                setImportStep("intro");
-                setImportFile(null);
-                setParsedRows([]);
-                setIsImportModalOpen(true);
-              }}
-            >
-              <FileUp size={16} />
-              <span className="text-[10px] uppercase tracking-[0.15em]">Importar</span>
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-primary gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
+            onClick={() => {
+              setImportStep("intro");
+              setImportFile(null);
+              setParsedRows([]);
+              setIsImportModalOpen(true);
+            }}
+          >
+            <FileUp size={14} /> Importar
+          </Button>
 
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 px-8 font-black gap-2 transition-all active:scale-95">
-                <Plus size={20} /> Novo Aluno
+              <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 transition-all active:scale-95 text-[11px] uppercase tracking-wider">
+                <Plus size={18} /> Novo Aluno
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
               <div className="bg-primary px-8 py-10 text-white">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
-                  <DialogDescription className="text-primary-foreground/70 font-medium">Dados cadastrais para o sistema de chamada.</DialogDescription>
                 </DialogHeader>
               </div>
               <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
@@ -357,7 +348,7 @@ export function StudentManagement() {
                     </ul>
                   </div>
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative">
-                    <FileUp size={32} className="text-slate-300 group-hover:scale-110 transition-transform mb-4" />
+                    <FileUp size={32} className="text-slate-300 transition-transform mb-4" />
                     <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o CSV</p>
                     <Input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                     {importFile && <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">{importFile.name}</Badge>}
@@ -446,13 +437,13 @@ export function StudentManagement() {
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 hover:-translate-y-0.5 group">
-                    <TableCell className="py-5 pl-8">
+                  <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 group">
+                    <TableCell className="py-4 pl-8">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
-                          <User size={20} />
+                        <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
+                          <User size={18} />
                         </div>
-                        <span className="font-black text-lg tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
+                        <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -471,16 +462,16 @@ export function StudentManagement() {
                       )}
                     </TableCell>
                     <TableCell className="text-right pr-8">
-                      <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-white hover:shadow-sm" onClick={() => {
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
                           setEditingStudent(s);
                           setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
                           setIsDialogOpen(true);
                         }}>
-                          <Edit2 size={16} className="text-slate-400 hover:text-primary transition-colors" />
+                          <Edit2 size={14} className="text-slate-400 hover:text-primary transition-colors" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-red-50" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
-                          {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} className="text-slate-300 hover:text-red-500 transition-colors" />}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
+                          {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-slate-300 hover:text-red-500 transition-colors" />}
                         </Button>
                       </div>
                     </TableCell>
@@ -488,7 +479,7 @@ export function StudentManagement() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-24 text-slate-300 font-bold italic tracking-tight">
+                  <TableCell colSpan={4} className="text-center py-20 text-slate-300 font-bold italic tracking-tight">
                     Nenhum registro de aluno localizado.
                   </TableCell>
                 </TableRow>
