@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, writeBatch } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import * as XLSX from 'xlsx';
 
 export function StudentManagement() {
   const db = useFirestore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [escolares, setEscolares] = useState<any[]>([]);
@@ -172,7 +173,29 @@ export function StudentManagement() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setImportFile(file);
+    if (file) {
+      setImportFile(file);
+      setImportStep("intro");
+      setIsImportModalOpen(true);
+      // Reset input to allow selecting same file again
+      e.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      setImportFile(file);
+      setImportStep("intro");
+      setIsImportModalOpen(true);
+    }
   };
 
   const validateImport = async () => {
@@ -297,15 +320,19 @@ export function StudentManagement() {
               <Button 
                 variant="ghost" 
                 className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-primary gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
-                onClick={() => {
-                  setImportStep("intro");
-                  setImportFile(null);
-                  setParsedRows([]);
-                  setIsImportModalOpen(true);
-                }}
+                onClick={() => fileInputRef.current?.click()}
               >
                 <FileUp size={14} /> Importar
               </Button>
+
+              {/* Hidden file input for toolbar button */}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".xlsx,.xls,.csv" 
+                onChange={handleFileChange} 
+              />
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -391,15 +418,25 @@ export function StudentManagement() {
                       <Info size={16} className="text-primary" /> Instruções de Uso
                     </h4>
                     <ul className="space-y-3 text-sm text-slate-500 font-medium">
-                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize arquivos no formato .xlsx ou .csv.</li>
+                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize arquivos no formato .xlsx, .xls ou .csv.</li>
                       <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> As turmas informadas devem existir no sistema.</li>
                       <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Mantenha os cabeçalhos do modelo padrão.</li>
                     </ul>
                   </div>
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative">
+                  <div 
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative"
+                  >
                     <FileUp size={32} className="text-slate-300 transition-transform mb-4" />
                     <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o arquivo</p>
-                    <Input type="file" accept=".xlsx,.csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    {/* Input to handle clicks and manual file picking */}
+                    <input 
+                      type="file" 
+                      accept=".xlsx,.xls,.csv" 
+                      onChange={handleFileChange} 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                    />
                     {importFile && <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">{importFile.name}</Badge>}
                   </div>
                 </div>
