@@ -33,48 +33,48 @@ export default function OperatorPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
         <Tabs defaultValue="calls" className="space-y-6 sm:space-y-8" onValueChange={setActiveTab}>
-          {/* Navegação por Abas Refinada para Mobile (Apenas ícones no celular) */}
-          <div className="flex items-center justify-start sm:justify-center overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
-            <TabsList className="flex w-max sm:w-auto apple-blur p-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm bg-white/50 backdrop-blur-md">
+          {/* Navegação por Abas Refinada para Mobile (Largura total, ícones maiores e centralizados) */}
+          <div className="flex items-center justify-center overflow-x-auto pb-1 scrollbar-hide">
+            <TabsList className="flex w-[92%] sm:w-auto apple-blur p-1 h-14 rounded-2xl border border-slate-200 shadow-sm bg-white/50 backdrop-blur-md">
               <TabsTrigger 
                 value="calls" 
-                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Chamadas"
               >
-                <PhoneOutgoing size={18} className="shrink-0" />
-                <span className="hidden sm:inline">Chamadas</span>
+                <PhoneOutgoing size={22} className="shrink-0" />
+                <span className="hidden sm:inline ml-1">Chamadas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="escolares" 
-                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Escolares"
               >
-                <Bus size={18} className="shrink-0" />
-                <span className="hidden sm:inline">Escolares</span>
+                <Bus size={22} className="shrink-0" />
+                <span className="hidden sm:inline ml-1">Escolares</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="students" 
-                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Alunos"
               >
-                <GraduationCap size={18} className="shrink-0" />
-                <span className="hidden sm:inline">Alunos</span>
+                <GraduationCap size={22} className="shrink-0" />
+                <span className="hidden sm:inline ml-1">Alunos</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="classes" 
-                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Turmas"
               >
-                <Users size={18} className="shrink-0" />
-                <span className="hidden sm:inline">Turmas</span>
+                <Users size={22} className="shrink-0" />
+                <span className="hidden sm:inline ml-1">Turmas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
-                className="snap-center items-center gap-2 px-4 sm:px-6 rounded-lg sm:rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md text-xs sm:text-sm"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Histórico"
               >
-                <History size={18} className="shrink-0" />
-                <span className="hidden sm:inline">Histórico</span>
+                <History size={22} className="shrink-0" />
+                <span className="hidden sm:inline ml-1">Histórico</span>
               </TabsTrigger>
             </TabsList>
           </div>

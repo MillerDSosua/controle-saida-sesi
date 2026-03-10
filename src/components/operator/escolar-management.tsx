@@ -247,21 +247,21 @@ export function EscolarManagement() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 bg-white/80 backdrop-blur-sm shadow-sm text-slate-400 hover:text-primary rounded-xl active:scale-90 transition-all" 
+                    className="h-9 w-9 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all rounded-xl" 
                     onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}
                     title="Editar"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={16} />
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 bg-white/80 backdrop-blur-sm shadow-sm text-slate-300 hover:text-red-500 rounded-xl active:scale-90 transition-all" 
+                    className="h-9 w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
                     disabled={isDeletingId === e.id} 
                     onClick={() => handleDelete(e.id, e.nome)}
                     title="Excluir"
                   >
-                    {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={14} />}
+                    {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
                   </Button>
                 </div>
                 <CardContent className="p-6 sm:p-8 flex flex-col h-full justify-between items-center text-center">
@@ -320,21 +320,21 @@ export function EscolarManagement() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 rounded-xl bg-slate-50 text-slate-400 hover:text-primary active:scale-90 transition-all" 
+                      className="h-9 w-9 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all rounded-xl" 
                       onClick={() => { setEditingEscolar(e); setName(e.nome); setIsDialogOpen(true); }}
                       title="Editar"
                     >
-                      <Pencil size={14} />
+                      <Pencil size={16} />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 rounded-xl bg-slate-50 text-slate-300 hover:text-red-500 active:scale-90 transition-all" 
+                      className="h-9 w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
                       disabled={isDeletingId === e.id} 
                       onClick={() => handleDelete(e.id, e.nome)}
                       title="Excluir"
                     >
-                      {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={14} />}
+                      {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
                     </Button>
                   </div>
                   <Button 
