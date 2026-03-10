@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -13,6 +12,7 @@ export {
   Search,
   User,
   Users,
+  UserPlus,
   FileUp,
   FileDown,
   Download,
