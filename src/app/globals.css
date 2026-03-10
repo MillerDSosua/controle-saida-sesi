@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -49,6 +50,11 @@
 }
 
 @layer base {
+  html {
+    /* Estabiliza o layout reservando espaço para a scrollbar vertical, 
+       impedindo o deslocamento horizontal ao trocar de abas. */
+    scrollbar-gutter: stable;
+  }
   * {
     @apply border-border;
   }
