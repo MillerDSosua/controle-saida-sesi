@@ -36,6 +36,7 @@ import {
   Bus
 } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 export function StudentManagement() {
   const db = useFirestore();
@@ -144,25 +145,29 @@ export function StudentManagement() {
       toast({ variant: "destructive", title: "Erro", description: "Não há alunos para exportar." });
       return;
     }
-    const headers = ["nomeExibicao", "turma", "escolar"];
-    const rows = students.map(s => [s.nomeExibicao, s.turmaNome, s.escolarNome || ""]);
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `alunos_sesi_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+
+    const data = students.map(s => ({
+      nomeExibicao: s.nomeExibicao,
+      turma: s.turmaNome,
+      escolar: s.escolarNome || ""
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Alunos");
+    XLSX.writeFile(workbook, `alunos_sesi_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleDownloadModel = () => {
-    const headers = ["nomeExibicao", "turma", "escolar"];
-    const examples = [["Miller Daniel", "7A", ""], ["Maria Souza", "6B", "Escolar Cássio"]];
-    const csvContent = [headers.join(","), ...examples.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "modelo_importacao_alunos.csv";
-    link.click();
+    const data = [
+      { nomeExibicao: "Miller Daniel", turma: "7A", escolar: "" },
+      { nomeExibicao: "Maria Souza", turma: "6B", escolar: "Escolar Cássio" }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo");
+    XLSX.writeFile(workbook, "modelo_importacao_alunos.xlsx");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,33 +178,54 @@ export function StudentManagement() {
   const validateImport = async () => {
     if (!importFile || !db) return;
     setIsValidating(true);
+
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split("\n").filter(line => line.trim() !== "");
-      const headers = lines[0].split(",").map(h => h.trim());
-      const rows = lines.slice(1).map((line, index) => {
-        const values = line.split(",").map(v => v.trim());
-        const rowData: any = {};
-        headers.forEach((h, i) => rowData[h] = values[i]);
-        const targetClass = classes.find(c => c.nome.toLowerCase() === rowData.turma?.toLowerCase());
-        const targetEscolar = rowData.escolar ? escolares.find(e => e.nome.toLowerCase() === rowData.escolar?.toLowerCase()) : null;
-        return {
-          id: index,
-          nomeExibicao: rowData.nomeExibicao,
-          turmaNome: rowData.turma,
-          escolarNome: rowData.escolar,
-          turmaId: targetClass?.id || null,
-          escolarId: targetEscolar?.id || null,
-          isValid: !!(rowData.nomeExibicao && targetClass),
-          error: !rowData.nomeExibicao ? "Nome ausente" : !targetClass ? "Turma não encontrada" : null
-        };
-      });
-      setParsedRows(rows);
-      setImportStep("preview");
-      setIsValidating(false);
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+        const rows = json.map((rowData: any, index) => {
+          const nome = rowData.nomeExibicao || rowData["nomeExibicao"] || "";
+          const turma = rowData.turma || rowData["turma"] || "";
+          const escolar = rowData.escolar || rowData["escolar"] || "";
+
+          const targetClass = classes.find(c => 
+            c.nome.toLowerCase().trim() === turma.toString().toLowerCase().trim()
+          );
+          
+          const targetEscolar = escolar 
+            ? escolares.find(e => e.nome.toLowerCase().trim() === escolar.toString().toLowerCase().trim()) 
+            : null;
+
+          return {
+            id: index,
+            nomeExibicao: nome,
+            turmaNome: turma,
+            escolarNome: escolar,
+            turmaId: targetClass?.id || null,
+            escolarId: targetEscolar?.id || null,
+            isValid: !!(nome && targetClass),
+            error: !nome ? "Nome ausente" : !targetClass ? "Turma não encontrada" : null
+          };
+        });
+
+        setParsedRows(rows);
+        setImportStep("preview");
+      } catch (err: any) {
+        toast({ 
+          variant: "destructive", 
+          title: "Erro na leitura", 
+          description: "Não foi possível processar o arquivo. Verifique o formato." 
+        });
+      } finally {
+        setIsValidating(false);
+      }
     };
-    reader.readAsText(importFile);
+    reader.readAsArrayBuffer(importFile);
   };
 
   const executeImport = async () => {
@@ -351,7 +377,7 @@ export function StudentManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-3xl font-black tracking-tight">Importar Alunos</DialogTitle>
-                <DialogDescription className="text-slate-400 text-base font-medium">Cadastre múltiplos registros via planilha CSV.</DialogDescription>
+                <DialogDescription className="text-slate-400 text-base font-medium">Cadastre múltiplos registros via planilha Excel ou CSV.</DialogDescription>
               </div>
               <FileUp size={32} className="opacity-20" />
             </div>
@@ -365,15 +391,15 @@ export function StudentManagement() {
                       <Info size={16} className="text-primary" /> Instruções de Uso
                     </h4>
                     <ul className="space-y-3 text-sm text-slate-500 font-medium">
-                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize apenas arquivos no formato CSV.</li>
+                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize arquivos no formato .xlsx ou .csv.</li>
                       <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> As turmas informadas devem existir no sistema.</li>
                       <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Mantenha os cabeçalhos do modelo padrão.</li>
                     </ul>
                   </div>
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative">
                     <FileUp size={32} className="text-slate-300 transition-transform mb-4" />
-                    <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o CSV</p>
-                    <Input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o arquivo</p>
+                    <Input type="file" accept=".xlsx,.csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                     {importFile && <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">{importFile.name}</Badge>}
                   </div>
                 </div>
