@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { 
   Plus, 
-  Edit2, 
-  Trash2, 
+  Pencil, 
+  Trash, 
   Search, 
   User, 
   FileUp, 
@@ -27,7 +26,6 @@ import {
   Bus
 } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 export function StudentManagement() {
   const db = useFirestore();
@@ -108,7 +106,7 @@ export function StudentManagement() {
 
   const handleDelete = async (id: string, name: string) => {
     if (!db || isDeletingId) return;
-    if (!confirm(`Tem certeza que deseja excluir o aluno "${name}"?`)) return;
+    if (!confirm(`Tem certeza que deseja excluir o aluno "${name}"?\nEsta ação não poderá ser desfeita.`)) return;
 
     setIsDeletingId(id);
     try {
@@ -219,55 +217,57 @@ export function StudentManagement() {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="flex flex-col xl:flex-row gap-5 items-center justify-between">
           <div className="relative w-full xl:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <Input
               placeholder="Buscar alunos..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-none text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary/10 transition-all placeholder:text-slate-400"
+              className="h-11 bg-slate-50 border-none rounded-xl pl-10 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary/10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
-            <Button 
-              variant="ghost" 
-              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-              onClick={handleDownloadModel}
-            >
-              <Download size={14} /> Modelo
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-slate-500 gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-              onClick={handleExport}
-            >
-              <FileDown size={14} /> Exportar
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <Button 
+                variant="ghost" 
+                className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-slate-500 gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
+                onClick={handleDownloadModel}
+              >
+                <Download size={14} /> Modelo
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-slate-500 gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
+                onClick={handleExport}
+              >
+                <FileDown size={14} /> Exportar
+              </Button>
 
-            <Button 
-              variant="ghost" 
-              className="h-10 rounded-lg px-3 font-bold hover:bg-slate-50 text-primary gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-wider"
-              onClick={() => {
-                setImportStep("intro");
-                setImportFile(null);
-                setParsedRows([]);
-                setIsImportModalOpen(true);
-              }}
-            >
-              <FileUp size={14} /> Importar
-            </Button>
+              <Button 
+                variant="ghost" 
+                className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-primary gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
+                onClick={() => {
+                  setImportStep("intro");
+                  setImportFile(null);
+                  setParsedRows([]);
+                  setIsImportModalOpen(true);
+                }}
+              >
+                <FileUp size={14} /> Importar
+              </Button>
+            </div>
 
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
             }}>
               <DialogTrigger asChild>
-                <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 transition-all active:scale-95 text-[11px] uppercase tracking-wider">
+                <Button className="h-10 w-full sm:w-auto rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 active:scale-95 text-[11px] uppercase tracking-wider">
                   <Plus size={18} /> Novo Aluno
                 </Button>
               </DialogTrigger>
@@ -378,13 +378,11 @@ export function StudentManagement() {
                 <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest py-4">Aluno</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Turma</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest py-4">Aluno</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Turma</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                      </TableRow>
                     </TableHeader>
                     <TableBody>
                       {parsedRows.map((row, i) => (
@@ -428,7 +426,7 @@ export function StudentManagement() {
         </DialogContent>
       </Dialog>
 
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-slate-50/50">
             <TableRow>
@@ -441,10 +439,10 @@ export function StudentManagement() {
           <TableBody>
             {filteredStudents.length > 0 ? (
               filteredStudents.map((s) => (
-                <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all duration-300 group border-b border-slate-50 last:border-0">
+                <TableRow key={s.id} className="hover:bg-slate-50/30 transition-all duration-200">
                   <TableCell className="py-4 pl-8">
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0 transition-all group-hover:bg-primary group-hover:text-white group-hover:border-transparent">
+                      <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0">
                         <User size={18} />
                       </div>
                       <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
@@ -466,16 +464,27 @@ export function StudentManagement() {
                     )}
                   </TableCell>
                   <TableCell className="text-right pr-8">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
-                        setEditingStudent(s);
-                        setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
-                        setIsDialogOpen(true);
-                      }}>
-                        <Edit2 size={14} className="text-slate-400 hover:text-primary transition-colors" />
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all" 
+                        onClick={() => {
+                          setEditingStudent(s);
+                          setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Pencil size={16} />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={isDeletingId === s.id} onClick={() => handleDelete(s.id, s.nomeExibicao)}>
-                        {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} className="text-slate-300 hover:text-red-500 transition-colors" />}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all" 
+                        disabled={isDeletingId === s.id}
+                        onClick={() => handleDelete(s.id, s.nomeExibicao)}
+                      >
+                        {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
                       </Button>
                     </div>
                   </TableCell>
