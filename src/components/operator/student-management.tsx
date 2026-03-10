@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +49,9 @@ export function StudentManagement() {
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "", escolarId: "" });
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
   
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importStep, setImportStep] = useState<"intro" | "preview" | "success">("intro");
@@ -104,11 +117,17 @@ export function StudentManagement() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!db || isDeletingId) return;
-    if (!confirm(`Tem certeza que deseja excluir o aluno "${name}"?\nEsta ação não poderá ser desfeita.`)) return;
+  const handleDeleteClick = (id: string, name: string) => {
+    setItemToDelete({ id, name });
+    setDeleteConfirmOpen(true);
+  };
 
+  const executeDelete = async () => {
+    if (!db || !itemToDelete || isDeletingId) return;
+    const { id } = itemToDelete;
     setIsDeletingId(id);
+    setDeleteConfirmOpen(false);
+    
     try {
       await deleteDoc(doc(db, "students", id));
       toast({ title: "Sucesso", description: "Aluno removido com sucesso." });
@@ -116,6 +135,7 @@ export function StudentManagement() {
       toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
     } finally {
       setIsDeletingId(null);
+      setItemToDelete(null);
     }
   };
 
@@ -482,7 +502,7 @@ export function StudentManagement() {
                         size="icon" 
                         className="h-9 w-9 rounded-xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all" 
                         disabled={isDeletingId === s.id}
-                        onClick={() => handleDelete(s.id, s.nomeExibicao)}
+                        onClick={() => handleDeleteClick(s.id, s.nomeExibicao)}
                       >
                         {isDeletingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
                       </Button>
@@ -500,6 +520,26 @@ export function StudentManagement() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="rounded-[2rem]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black">Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 font-medium">
+              Tem certeza que deseja excluir este registro? Esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={executeDelete}
+              className="rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

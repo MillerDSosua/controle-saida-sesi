@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash, Search, Bus, Loader2, Users, LayoutGrid, List } from "@/components/icons";
@@ -28,6 +38,10 @@ export function EscolarManagement() {
   const [name, setName] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
+  
   const { toast } = useToast();
   const [diaRef] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
@@ -99,17 +113,22 @@ export function EscolarManagement() {
     }
   };
 
-  const handleDelete = async (id: string, escolarName: string) => {
-    if (!db || isDeletingId) return;
-    if (!confirm(`Tem certeza que deseja excluir o transporte "${escolarName}"?\nEsta ação não poderá ser desfeita.`)) return;
+  const handleDeleteClick = (id: string, escolarName: string) => {
+    setItemToDelete({ id, name: escolarName });
+    setDeleteConfirmOpen(true);
+  };
 
+  const executeDelete = async () => {
+    if (!db || !itemToDelete || isDeletingId) return;
+    const { id } = itemToDelete;
     setIsDeletingId(id);
+    setDeleteConfirmOpen(false);
+
     try {
       const studentsQuery = query(collection(db, "students"), where("escolarId", "==", id), limit(1));
       const studentsSnapshot = await getDocs(studentsQuery);
       if (!studentsSnapshot.empty) {
         toast({ variant: "destructive", title: "Não é possível excluir", description: "Existem alunos vinculados." });
-        setIsDeletingId(null);
         return;
       }
       await deleteDoc(doc(db, "escolares", id));
@@ -118,6 +137,7 @@ export function EscolarManagement() {
       toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
     } finally {
       setIsDeletingId(null);
+      setItemToDelete(null);
     }
   };
 
@@ -258,7 +278,7 @@ export function EscolarManagement() {
                     size="icon" 
                     className="h-9 w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
                     disabled={isDeletingId === e.id} 
-                    onClick={() => handleDelete(e.id, e.nome)}
+                    onClick={() => handleDeleteClick(e.id, e.nome)}
                     title="Excluir"
                   >
                     {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
@@ -331,7 +351,7 @@ export function EscolarManagement() {
                       size="icon" 
                       className="h-8 w-8 sm:h-9 sm:w-9 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all rounded-xl" 
                       disabled={isDeletingId === e.id} 
-                      onClick={() => handleDelete(e.id, e.nome)}
+                      onClick={() => handleDeleteClick(e.id, e.nome)}
                       title="Excluir"
                     >
                       {isDeletingId === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash size={16} />}
@@ -351,6 +371,26 @@ export function EscolarManagement() {
           })}
         </div>
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="rounded-[2rem]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black">Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 font-medium">
+              Tem certeza que deseja excluir este registro? Esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={executeDelete}
+              className="rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
