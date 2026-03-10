@@ -20,10 +20,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash, Search, Bus, Loader2, Users, LayoutGrid, List } from "@/components/icons";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Trash, Search, Bus, Loader2, Users, LayoutGrid, List, X, UserPlus, GraduationCap } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 export function EscolarManagement() {
   const { user } = useAuth();
@@ -36,8 +38,10 @@ export function EscolarManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEscolar, setEditingEscolar] = useState<any>(null);
   const [name, setName] = useState("");
+  const [studentToAddId, setStudentToAddId] = useState<string>("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [isUpdatingVincule, setIsUpdatingVincule] = useState(false);
   
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
@@ -113,6 +117,40 @@ export function EscolarManagement() {
     }
   };
 
+  const handleAddStudentToEscolar = async () => {
+    if (!db || !editingEscolar || !studentToAddId) return;
+    setIsUpdatingVincule(true);
+    try {
+      const student = students.find(s => s.id === studentToAddId);
+      if (!student) return;
+      await updateDoc(doc(db, "students", student.id), {
+        escolarId: editingEscolar.id,
+        escolarNome: editingEscolar.nome,
+        updatedAt: serverTimestamp(),
+      });
+      setStudentToAddId("");
+      toast({ title: "Vínculo Criado", description: `${student.nomeExibicao} agora faz parte deste escolar.` });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao vincular aluno." });
+    } finally {
+      setIsUpdatingVincule(false);
+    }
+  };
+
+  const handleRemoveStudentFromEscolar = async (studentId: string, studentName: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, "students", studentId), {
+        escolarId: null,
+        escolarNome: null,
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: "Vínculo Removido", description: `O aluno ${studentName} foi removido deste transporte.` });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao remover vínculo." });
+    }
+  };
+
   const handleDeleteClick = (id: string, escolarName: string) => {
     setItemToDelete({ id, name: escolarName });
     setDeleteConfirmOpen(true);
@@ -128,7 +166,7 @@ export function EscolarManagement() {
       const studentsQuery = query(collection(db, "students"), where("escolarId", "==", id), limit(1));
       const studentsSnapshot = await getDocs(studentsQuery);
       if (!studentsSnapshot.empty) {
-        toast({ variant: "destructive", title: "Não é possível excluir", description: "Existem alunos vinculados." });
+        toast({ variant: "destructive", title: "Não é possível excluir", description: "Não é possível excluir este escolar enquanto houver alunos vinculados. Remova ou transfira os alunos antes de excluir." });
         return;
       }
       await deleteDoc(doc(db, "escolares", id));
@@ -183,6 +221,8 @@ export function EscolarManagement() {
   };
 
   const filteredEscolares = escolares.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+  const linkedStudents = editingEscolar ? students.filter(s => s.escolarId === editingEscolar.id) : [];
+  const unlinkedStudents = students.filter(s => !s.escolarId);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -200,30 +240,117 @@ export function EscolarManagement() {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
-              if (!open) { setEditingEscolar(null); setName(""); }
+              if (!open) { setEditingEscolar(null); setName(""); setStudentToAddId(""); }
             }}>
               <DialogTrigger asChild>
                 <Button className="h-10 rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 active:scale-95 transition-all text-[11px] uppercase tracking-wider">
                   <Plus size={16} /> Novo Escolar
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
-                <div className="bg-primary px-8 py-10 text-white">
+              <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[550px] flex flex-col max-h-[90vh]">
+                <div className="bg-primary px-8 py-8 text-white shrink-0">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black tracking-tight">
                       {editingEscolar ? "Editar Escolar" : "Novo Escolar"}
                     </DialogTitle>
+                    <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-1">Configurações de Transporte</p>
                   </DialogHeader>
                 </div>
-                <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
+                
+                <div className="p-8 space-y-8 bg-white overflow-y-auto flex-1 scrollbar-hide">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome do Escolar / Motorista</Label>
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Escolar do Cássio" required className="h-12 rounded-xl bg-slate-50 border-none text-base" />
+                    <Input 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      placeholder="Ex: Escolar do Cássio" 
+                      required 
+                      className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold text-slate-900" 
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button type="submit" className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">Salvar Cadastro</Button>
-                  </DialogFooter>
-                </form>
+
+                  {editingEscolar && (
+                    <>
+                      <Separator className="bg-slate-50" />
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Alunos Vinculados ({linkedStudents.length})</Label>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {linkedStudents.length > 0 ? (
+                            linkedStudents.map(student => (
+                              <div key={student.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 group">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-primary shadow-sm border border-slate-100">
+                                    <GraduationCap size={16} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-slate-900 leading-none">{student.nomeExibicao}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase mt-1">{student.turmaNome}</span>
+                                  </div>
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  onClick={() => handleRemoveStudentFromEscolar(student.id, student.nomeExibicao)}
+                                >
+                                  <X size={14} />
+                                </Button>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-400 font-medium italic text-center py-4">Nenhum aluno vinculado a este transporte.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Vincular Novo Aluno</Label>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Select value={studentToAddId} onValueChange={setStudentToAddId}>
+                              <SelectTrigger className="h-12 bg-slate-50 border-none rounded-xl text-sm font-bold">
+                                <SelectValue placeholder="Selecione um aluno..." />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-none shadow-xl">
+                                {unlinkedStudents.length > 0 ? (
+                                  unlinkedStudents.map(student => (
+                                    <SelectItem key={student.id} value={student.id} className="h-10 font-bold">
+                                      {student.nomeExibicao} ({student.turmaNome})
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <p className="p-3 text-xs text-center text-slate-400">Todos os alunos já possuem transporte.</p>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button 
+                            type="button" 
+                            disabled={!studentToAddId || isUpdatingVincule} 
+                            onClick={handleAddStudentToEscolar}
+                            className="h-12 w-12 gradient-primary rounded-xl flex items-center justify-center shrink-0 shadow-lg active:scale-95 transition-all"
+                          >
+                            {isUpdatingVincule ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <DialogFooter className="p-8 bg-slate-50/50 shrink-0">
+                  <Button 
+                    type="submit" 
+                    onClick={handleSave}
+                    className="w-full h-12 rounded-xl gradient-primary text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20"
+                  >
+                    Salvar Alterações
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
