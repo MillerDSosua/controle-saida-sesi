@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useAuth, useFirestore } from "@/firebase";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { GraduationCap, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
-  const auth = useAuth();
-  const db = useFirestore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,31 +26,46 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !db) return;
     setIsLoading(true);
-  
+
     try {
-      console.log("[Login] Tentando autenticação para:", email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("[Login] Autenticado com sucesso. Buscando perfil no Firestore...");
-      
-      const userRef = doc(db, "users", userCredential.user.uid);
-      const userSnap = await getDoc(userRef);
-  
-      if (!userSnap.exists()) {
-        console.error("[Login] Perfil não encontrado no Firestore para UID:", userCredential.user.uid);
+      console.log("[Login] Tentando autenticação Supabase para:", email);
+
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (authError) throw authError;
+
+      const supabaseUser = authData.user;
+
+      if (!supabaseUser) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      console.log("[Login] Autenticado com sucesso. Buscando perfil no Supabase...");
+
+      const { data: userRow, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", supabaseUser.id)
+        .single();
+
+      if (userError || !userRow) {
+        console.error("[Login] Perfil não encontrado no Supabase para UID:", supabaseUser.id);
         throw new Error("ROLE_NOT_FOUND");
       }
-  
-      const userData = userSnap.data();
+
+      const userData = userRow.data || {};
       console.log("[Login] Perfil carregado. Role:", userData.role);
-      
+
       toast({
         title: "Acesso Autorizado",
         description: "Bem-vindo ao sistema SESI.",
       });
-  
-      // Redirecionamento baseado na role
+
       if (userData.role === "operator") {
         router.push("/operator");
       } else if (userData.role === "viewer") {
@@ -56,22 +74,24 @@ export default function LoginPage() {
         console.error("[Login] Role inválida detectada:", userData.role);
         throw new Error("INVALID_ROLE");
       }
-  
     } catch (error: any) {
       console.error("[Login] Falha no login:", error);
+
       let title = "Erro de Acesso";
       let description = "Verifique suas credenciais.";
-  
-      if (error?.code === "auth/invalid-credential") {
+
+      if (error?.message?.includes("Invalid login credentials")) {
         description = "E-mail ou senha inválidos.";
       } else if (error?.message === "ROLE_NOT_FOUND") {
         title = "Conta não configurada";
-        description = "Sua conta não possui permissões no Firestore.";
+        description = "Sua conta não possui permissões no Supabase.";
       } else if (error?.message === "INVALID_ROLE") {
         title = "Acesso Negado";
         description = "Sua conta não possui um nível de acesso válido.";
+      } else if (error?.message === "USER_NOT_FOUND") {
+        description = "Usuário não encontrado.";
       }
-  
+
       toast({
         variant: "destructive",
         title,
@@ -90,8 +110,10 @@ export default function LoginPage() {
             <GraduationCap size={48} />
           </div>
           <div className="space-y-1">
-            <h1 className="text-5xl font-black tracking-tighter text-primary">SESI</h1>
-            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-xs">Saída Inteligente</p>
+            <h1 className="text-5xl font-black tracking-tighter text-primary">ESCOLA SESI BETIM</h1>
+            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-xs">
+              Saída Inteligente - Miller
+            </p>
           </div>
         </div>
 
@@ -100,12 +122,20 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-black flex items-center justify-center gap-2">
               <ShieldCheck className="text-primary" size={24} /> Login Seguro
             </CardTitle>
-            <CardDescription className="text-sm font-medium">Controle de acesso restrito</CardDescription>
+            <CardDescription className="text-sm font-medium">
+              Controle de acesso restrito!
+            </CardDescription>
           </CardHeader>
+
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
-                <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail Corporativo</Label>
+                <Label
+                  htmlFor="email"
+                  className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1"
+                >
+                  E-mail Corporativo
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -116,18 +146,30 @@ export default function LoginPage() {
                   className="h-14 bg-secondary/50 border-none rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/20 transition-all text-lg"
                 />
               </div>
+
               <div className="space-y-3">
-                <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Senha de Acesso</Label>
+                <Label
+                  htmlFor="password"
+                  className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1"
+                >
+                  Senha de Acesso
+                </Label>
                 <Input
                   id="password"
                   type="password"
+                  placeholder="senha"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-14 bg-secondary/50 border-none rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/20 transition-all text-lg"
                 />
               </div>
-              <Button type="submit" className="w-full h-16 text-lg font-black gradient-primary rounded-2xl shadow-xl shadow-primary/30 hover:scale-[1.02] transition-transform" disabled={isLoading}>
+
+              <Button
+                type="submit"
+                className="w-full h-16 text-lg font-black gradient-primary rounded-2xl shadow-xl shadow-primary/30 hover:scale-[1.02] transition-transform"
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <span className="flex items-center gap-3">
                     <span className="h-5 w-5 animate-spin rounded-full border-3 border-white border-t-transparent"></span>
@@ -139,11 +181,19 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
+
           <CardFooter className="flex flex-col space-y-6 pb-12 pt-6">
             <div className="w-full h-px bg-border/50"></div>
             <p className="text-[10px] text-center text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">
-              Problemas com o acesso?<br />
-              Contate o <a href="mailto:suporte@fiemg.com.br" className="text-primary hover:underline">Administrador de TI</a>
+              Problemas com o acesso?
+              <br />
+              Contate o{" "}
+              <a
+                href="mailto:suporte@fiemg.com.br"
+                className="text-primary hover:underline"
+              >
+                Técnico Miller
+              </a>
             </p>
           </CardFooter>
         </Card>

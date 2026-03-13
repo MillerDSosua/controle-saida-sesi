@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, writeBatch } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,25 +19,24 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Plus, 
-  Pencil, 
-  Trash, 
-  Search, 
-  User, 
-  FileUp, 
-  FileDown, 
-  Download, 
-  CheckCircle2, 
+import {
+  Plus,
+  Pencil,
+  Trash,
+  Search,
+  User,
+  FileUp,
+  FileDown,
+  Download,
+  CheckCircle2,
   Loader2,
   Info,
   Bus
 } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 export function StudentManagement() {
-  const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -51,69 +48,192 @@ export function StudentManagement() {
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [formData, setFormData] = useState({ nomeExibicao: "", turmaId: "", escolarId: "" });
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
-  
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
+
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importStep, setImportStep] = useState<"intro" | "preview" | "success">("intro");
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const { toast } = useToast();
 
+  const nowIso = () => new Date().toISOString();
+
+  const mapSupabaseRow = (row: any) => ({
+    id: row.id,
+    ...(row.data || {}),
+  });
+
+  const generateId = () => {
+    if (typeof globalThis !== "undefined" && globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `id_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  };
+
+  const loadStudents = async () => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("Erro ao buscar students:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os alunos.",
+      });
+      return;
+    }
+
+    const mapped = (data || [])
+      .map(mapSupabaseRow)
+      .sort((a, b) =>
+        (a.nomeExibicao || "").localeCompare(b.nomeExibicao || "", "pt-BR", {
+          sensitivity: "base",
+        })
+      );
+
+    setStudents(mapped);
+  };
+
+  const loadClasses = async () => {
+    const { data, error } = await supabase
+      .from("classes")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("Erro ao buscar classes:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar as turmas.",
+      });
+      return;
+    }
+
+    const mapped = (data || [])
+      .map(mapSupabaseRow)
+      .sort((a, b) =>
+        (a.nome || "").localeCompare(b.nome || "", "pt-BR", {
+          sensitivity: "base",
+        })
+      );
+
+    setClasses(mapped);
+  };
+
+  const loadEscolares = async () => {
+    const { data, error } = await supabase
+      .from("escolares")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("Erro ao buscar escolares:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os escolares.",
+      });
+      return;
+    }
+
+    const mapped = (data || [])
+      .map(mapSupabaseRow)
+      .sort((a, b) =>
+        (a.nome || "").localeCompare(b.nome || "", "pt-BR", {
+          sensitivity: "base",
+        })
+      );
+
+    setEscolares(mapped);
+  };
+
   useEffect(() => {
-    if (!db) return;
-    const unsubS = onSnapshot(query(collection(db, "students"), orderBy("nomeExibicao", "asc")), (s) => {
-      setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    const unsubC = onSnapshot(query(collection(db, "classes"), orderBy("nome", "asc")), (s) => {
-      setClasses(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    const unsubE = onSnapshot(query(collection(db, "escolares"), orderBy("nome", "asc")), (s) => {
-      setEscolares(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => { unsubS(); unsubC(); unsubE(); };
-  }, [db]);
+    const init = async () => {
+      await Promise.all([loadStudents(), loadClasses(), loadEscolares()]);
+    };
+
+    init();
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
 
-    const selectedClass = classes.find(c => c.id === formData.turmaId);
+    const selectedClass = classes.find((c) => c.id === formData.turmaId);
     if (!selectedClass) {
-      toast({ variant: "destructive", title: "Erro", description: "Selecione uma turma válida." });
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Selecione uma turma válida.",
+      });
       return;
     }
 
     setIsSubmitting(true);
-    const selectedEscolar = escolares.find(e => e.id === formData.escolarId);
+    const selectedEscolar = escolares.find((e) => e.id === formData.escolarId);
 
     try {
-      const data = {
+      const payload = {
         nomeExibicao: formData.nomeExibicao,
         turmaId: formData.turmaId,
         turmaNome: selectedClass.nome,
         escolarId: formData.escolarId || null,
         escolarNome: selectedEscolar ? selectedEscolar.nome : null,
-        updatedAt: serverTimestamp(),
+        updatedAt: nowIso(),
       };
 
       if (editingStudent) {
-        await updateDoc(doc(db, "students", editingStudent.id), data);
+        const { error } = await supabase
+          .from("students")
+          .update({
+            data: {
+              ...editingStudent,
+              ...payload,
+            },
+          })
+          .eq("id", editingStudent.id);
+
+        if (error) throw error;
+
         toast({ title: "Sucesso", description: "Aluno atualizado." });
       } else {
-        await addDoc(collection(db, "students"), {
-          ...data,
-          ativo: true,
-          createdAt: serverTimestamp(),
-        });
+        const newId = generateId();
+
+        const { error } = await supabase.from("students").insert([
+          {
+            id: newId,
+            data: {
+              id: newId,
+              ...payload,
+              ativo: true,
+              createdAt: nowIso(),
+            },
+          },
+        ]);
+
+        if (error) throw error;
+
         toast({ title: "Sucesso", description: "Aluno cadastrado." });
       }
+
       setIsDialogOpen(false);
       setEditingStudent(null);
       setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" });
+
+      await loadStudents();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: error.message || "Falha ao salvar aluno.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -125,16 +245,25 @@ export function StudentManagement() {
   };
 
   const executeDelete = async () => {
-    if (!db || !itemToDelete || isDeletingId) return;
+    if (!itemToDelete || isDeletingId) return;
+
     const { id } = itemToDelete;
     setIsDeletingId(id);
     setDeleteConfirmOpen(false);
-    
+
     try {
-      await deleteDoc(doc(db, "students", id));
+      const { error } = await supabase.from("students").delete().eq("id", id);
+
+      if (error) throw error;
+
       toast({ title: "Sucesso", description: "Aluno removido com sucesso." });
+      await loadStudents();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir",
+        description: error.message || "Falha ao excluir aluno.",
+      });
     } finally {
       setIsDeletingId(null);
       setItemToDelete(null);
@@ -147,22 +276,22 @@ export function StudentManagement() {
       return;
     }
 
-    const data = students.map(s => ({
+    const data = students.map((s) => ({
       nomeExibicao: s.nomeExibicao,
       turma: s.turmaNome,
-      escolar: s.escolarNome || ""
+      escolar: s.escolarNome || "",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Alunos");
-    XLSX.writeFile(workbook, `alunos_sesi_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `alunos_sesi_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const handleDownloadModel = () => {
     const data = [
       { nomeExibicao: "Miller Daniel", turma: "7A", escolar: "" },
-      { nomeExibicao: "Maria Souza", turma: "6B", escolar: "Escolar Cássio" }
+      { nomeExibicao: "Maria Souza", turma: "6B", escolar: "Escolar Cássio" },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -177,7 +306,7 @@ export function StudentManagement() {
       setImportFile(file);
       setImportStep("intro");
       setIsImportModalOpen(true);
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
@@ -190,7 +319,7 @@ export function StudentManagement() {
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+    if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv"))) {
       setImportFile(file);
       setImportStep("intro");
       setIsImportModalOpen(true);
@@ -198,24 +327,24 @@ export function StudentManagement() {
   };
 
   const validateImport = async () => {
-    if (!importFile || !db) return;
+    if (!importFile) return;
     setIsValidating(true);
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-        // Função de normalização inteligente para comparação tolerante
         const normalize = (val: string) => {
           if (!val) return "";
-          return val.toString()
+          return val
+            .toString()
             .toUpperCase()
-            .replace(/[\s°º-]/g, '') // Remove espaços, °, º e hífen
+            .replace(/[\s°º-]/g, "")
             .trim();
         };
 
@@ -225,36 +354,32 @@ export function StudentManagement() {
           const escolarRaw = rowData.escolar || rowData["escolar"] || "";
 
           const normalizedImportTurma = normalize(turmaRaw.toString());
-          
-          // Busca a turma ignorando variações de escrita (ex: 6A, 6°A, 6-A)
-          const targetClass = classes.find(c => 
-            normalize(c.nome) === normalizedImportTurma
-          );
-          
-          // Busca o escolar ignorando variações de escrita
-          const targetEscolar = escolarRaw 
-            ? escolares.find(e => normalize(e.nome) === normalize(escolarRaw.toString())) 
+
+          const targetClass = classes.find((c) => normalize(c.nome) === normalizedImportTurma);
+
+          const targetEscolar = escolarRaw
+            ? escolares.find((e) => normalize(e.nome) === normalize(escolarRaw.toString()))
             : null;
 
           return {
             id: index,
             nomeExibicao: nome,
-            turmaNome: targetClass ? targetClass.nome : turmaRaw, // Usa o nome oficial se encontrar
-            escolarNome: targetEscolar ? targetEscolar.nome : (escolarRaw || ""),
+            turmaNome: targetClass ? targetClass.nome : turmaRaw,
+            escolarNome: targetEscolar ? targetEscolar.nome : escolarRaw || "",
             turmaId: targetClass?.id || null,
             escolarId: targetEscolar?.id || null,
             isValid: !!(nome && targetClass),
-            error: !nome ? "Nome ausente" : !targetClass ? "Turma não encontrada" : null
+            error: !nome ? "Nome ausente" : !targetClass ? "Turma não encontrada" : null,
           };
         });
 
         setParsedRows(rows);
         setImportStep("preview");
       } catch (err: any) {
-        toast({ 
-          variant: "destructive", 
-          title: "Erro na leitura", 
-          description: "Não foi possível processar o arquivo. Verifique o formato." 
+        toast({
+          variant: "destructive",
+          title: "Erro na leitura",
+          description: "Não foi possível processar o arquivo. Verifique o formato.",
         });
       } finally {
         setIsValidating(false);
@@ -264,37 +389,55 @@ export function StudentManagement() {
   };
 
   const executeImport = async () => {
-    if (!db) return;
     setIsSubmitting(true);
-    const validRows = parsedRows.filter(r => r.isValid);
+    const validRows = parsedRows.filter((r) => r.isValid);
+
     try {
-      const batch = writeBatch(db);
-      validRows.forEach(row => {
-        const newDocRef = doc(collection(db, "students"));
-        batch.set(newDocRef, {
-          nomeExibicao: row.nomeExibicao,
-          turmaId: row.turmaId,
-          turmaNome: row.turmaNome,
-          escolarId: row.escolarId || null,
-          escolarNome: row.escolarNome || null,
-          ativo: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+      const rows = validRows.map((row) => {
+        const id = crypto.randomUUID();
+
+        return {
+          id,
+          data: {
+            id,
+            nomeExibicao: row.nomeExibicao,
+            turmaId: row.turmaId,
+            turmaNome: row.turmaNome,
+            escolarId: row.escolarId || null,
+            escolarNome: row.escolarNome || null,
+            ativo: true,
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          },
+        };
       });
-      await batch.commit();
+
+      const { error } = await supabase.from("students").insert(rows);
+
+      if (error) throw error;
+
       setImportStep("success");
-      toast({ title: "Importação Concluída", description: `${validRows.length} alunos foram cadastrados.` });
+      toast({
+        title: "Importação Concluída",
+        description: `${validRows.length} alunos foram cadastrados.`,
+      });
+
+      await loadStudents();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro na Importação", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Erro na Importação",
+        description: error.message || "Falha ao importar alunos.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.nomeExibicao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.turmaNome.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(
+    (s) =>
+      (s.nomeExibicao || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.turmaNome || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -313,43 +456,49 @@ export function StudentManagement() {
 
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
             <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-slate-500 gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
                 onClick={handleDownloadModel}
               >
                 <Download size={14} /> Modelo
               </Button>
-              
-              <Button 
-                variant="ghost" 
+
+              <Button
+                variant="ghost"
                 className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-slate-500 gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
                 onClick={handleExport}
               >
                 <FileDown size={14} /> Exportar
               </Button>
 
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="h-10 rounded-xl px-4 font-bold bg-slate-50 hover:bg-slate-100 text-primary gap-2 active:scale-95 text-[10px] uppercase tracking-wider shrink-0"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FileUp size={14} /> Importar
               </Button>
 
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept=".xlsx,.xls,.csv" 
-                onChange={handleFileChange} 
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileChange}
               />
             </div>
 
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) { setEditingStudent(null); setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" }); }
-            }}>
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) {
+                  setEditingStudent(null);
+                  setFormData({ nomeExibicao: "", turmaId: "", escolarId: "" });
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="h-10 w-full sm:w-auto rounded-xl gradient-primary shadow-lg shadow-primary/20 px-6 font-black gap-2 active:scale-95 text-[11px] uppercase tracking-wider">
                   <Plus size={18} /> Novo Aluno
@@ -358,13 +507,17 @@ export function StudentManagement() {
               <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-w-[480px]">
                 <div className="bg-primary px-8 py-10 text-white">
                   <DialogHeader>
-                    <DialogTitle className="text-2xl font-black tracking-tight">{editingStudent ? "Editar Aluno" : "Novo Aluno"}</DialogTitle>
+                    <DialogTitle className="text-2xl font-black tracking-tight">
+                      {editingStudent ? "Editar Aluno" : "Novo Aluno"}
+                    </DialogTitle>
                   </DialogHeader>
                 </div>
                 <form onSubmit={handleSave} className="p-8 space-y-6 bg-white">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nome de Exibição</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        Nome de Exibição
+                      </Label>
                       <Input
                         value={formData.nomeExibicao}
                         onChange={(e) => setFormData({ ...formData, nomeExibicao: e.target.value })}
@@ -374,31 +527,52 @@ export function StudentManagement() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        Turma
+                      </Label>
                       <Select value={formData.turmaId} onValueChange={(val) => setFormData({ ...formData, turmaId: val })}>
                         <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
                           <SelectValue placeholder="Selecione a turma" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-none shadow-xl p-1">
-                          {classes.map(c => <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg font-semibold">{c.nome}</SelectItem>)}
+                          {classes.map((c) => (
+                            <SelectItem key={c.id} value={c.id} className="h-11 rounded-lg font-semibold">
+                              {c.nome}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Escolar (Opcional)</Label>
-                      <Select value={formData.escolarId || "none"} onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val})}>
+                      <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        Escolar (Opcional)
+                      </Label>
+                      <Select
+                        value={formData.escolarId || "none"}
+                        onValueChange={(val) => setFormData({ ...formData, escolarId: val === "none" ? "" : val })}
+                      >
                         <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none text-base font-bold">
                           <SelectValue placeholder="Sem escolar" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-none shadow-xl p-1">
-                          <SelectItem value="none" className="h-11 rounded-lg font-semibold">Uso individual</SelectItem>
-                          {escolares.map(e => <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg font-semibold">{e.nome}</SelectItem>)}
+                          <SelectItem value="none" className="h-11 rounded-lg font-semibold">
+                            Uso individual
+                          </SelectItem>
+                          {escolares.map((e) => (
+                            <SelectItem key={e.id} value={e.id} className="h-11 rounded-lg font-semibold">
+                              {e.nome}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform">
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-12 rounded-xl gradient-primary text-base font-black active:scale-95 transition-transform"
+                    >
                       {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Salvar Cadastro"}
                     </Button>
                   </DialogFooter>
@@ -415,7 +589,9 @@ export function StudentManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-3xl font-black tracking-tight">Importar Alunos</DialogTitle>
-                <DialogDescription className="text-slate-400 text-base font-medium">Cadastre múltiplos registros via planilha Excel ou CSV.</DialogDescription>
+                <DialogDescription className="text-slate-400 text-base font-medium">
+                  Cadastre múltiplos registros via planilha Excel ou CSV.
+                </DialogDescription>
               </div>
               <FileUp size={32} className="opacity-20" />
             </div>
@@ -429,25 +605,38 @@ export function StudentManagement() {
                       <Info size={16} className="text-primary" /> Instruções de Uso
                     </h4>
                     <ul className="space-y-3 text-sm text-slate-500 font-medium">
-                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize arquivos no formato .xlsx, .xls ou .csv.</li>
-                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> As turmas informadas devem existir no sistema.</li>
-                      <li className="flex gap-2.5"><CheckCircle2 size={16} className="text-green-500 shrink-0" /> Mantenha os cabeçalhos do modelo padrão.</li>
+                      <li className="flex gap-2.5">
+                        <CheckCircle2 size={16} className="text-green-500 shrink-0" /> Utilize arquivos no formato
+                        .xlsx, .xls ou .csv.
+                      </li>
+                      <li className="flex gap-2.5">
+                        <CheckCircle2 size={16} className="text-green-500 shrink-0" /> As turmas informadas devem existir
+                        no sistema.
+                      </li>
+                      <li className="flex gap-2.5">
+                        <CheckCircle2 size={16} className="text-green-500 shrink-0" /> Mantenha os cabeçalhos do modelo
+                        padrão.
+                      </li>
                     </ul>
                   </div>
-                  <div 
+                  <div
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] p-8 bg-white group hover:border-primary/30 hover:bg-primary/[0.02] transition-all relative"
                   >
                     <FileUp size={32} className="text-slate-300 transition-transform mb-4" />
                     <p className="text-sm font-black text-slate-500 tracking-tight">Arraste ou selecione o arquivo</p>
-                    <input 
-                      type="file" 
-                      accept=".xlsx,.xls,.csv" 
-                      onChange={handleFileChange} 
-                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
                     />
-                    {importFile && <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">{importFile.name}</Badge>}
+                    {importFile && (
+                      <Badge className="mt-4 bg-primary text-white border-none px-3 py-1 font-bold">
+                        {importFile.name}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -461,11 +650,11 @@ export function StudentManagement() {
                   </div>
                   <div className="bg-white p-5 rounded-2xl border border-green-100 text-center shadow-sm">
                     <p className="text-[10px] font-black uppercase tracking-widest text-green-500 mb-1">Válidos</p>
-                    <p className="text-2xl font-black text-green-600">{parsedRows.filter(r => r.isValid).length}</p>
+                    <p className="text-2xl font-black text-green-600">{parsedRows.filter((r) => r.isValid).length}</p>
                   </div>
                   <div className="bg-white p-5 rounded-2xl border border-red-100 text-center shadow-sm">
                     <p className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Erros</p>
-                    <p className="text-2xl font-black text-red-600">{parsedRows.filter(r => !r.isValid).length}</p>
+                    <p className="text-2xl font-black text-red-600">{parsedRows.filter((r) => !r.isValid).length}</p>
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
@@ -480,13 +669,22 @@ export function StudentManagement() {
                     <TableBody>
                       {parsedRows.map((row, i) => (
                         <TableRow key={i} className="hover:bg-slate-50/30">
-                          <TableCell className="text-sm font-black text-slate-900 tracking-tight">{row.nomeExibicao}</TableCell>
+                          <TableCell className="text-sm font-black text-slate-900 tracking-tight">
+                            {row.nomeExibicao}
+                          </TableCell>
                           <TableCell className="text-sm font-bold text-slate-500">{row.turmaNome}</TableCell>
                           <TableCell>
                             {row.isValid ? (
-                              <Badge className="bg-green-500 text-white text-[8px] font-black tracking-widest border-none">VÁLIDO</Badge>
+                              <Badge className="bg-green-500 text-white text-[8px] font-black tracking-widest border-none">
+                                VÁLIDO
+                              </Badge>
                             ) : (
-                              <Badge variant="destructive" className="text-[8px] font-black tracking-widest border-none">{row.error?.toUpperCase()}</Badge>
+                              <Badge
+                                variant="destructive"
+                                className="text-[8px] font-black tracking-widest border-none"
+                              >
+                                {row.error?.toUpperCase()}
+                              </Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -505,15 +703,43 @@ export function StudentManagement() {
                   <h3 className="text-3xl font-black tracking-tight text-slate-900">Sucesso Absoluto</h3>
                   <p className="text-slate-500 font-medium">Os registros foram processados e salvos.</p>
                 </div>
-                <Button onClick={() => setIsImportModalOpen(false)} className="rounded-xl h-14 px-10 gradient-primary font-black uppercase tracking-widest active:scale-95 transition-all">Concluir</Button>
+                <Button
+                  onClick={() => setIsImportModalOpen(false)}
+                  className="rounded-xl h-14 px-10 gradient-primary font-black uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  Concluir
+                </Button>
               </div>
             )}
           </div>
           <div className="bg-white border-t p-6 flex justify-between items-center shrink-0">
-            <Button variant="ghost" className="font-black text-[11px] uppercase tracking-widest text-slate-400 hover:text-slate-900" onClick={() => setIsImportModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button
+              variant="ghost"
+              className="font-black text-[11px] uppercase tracking-widest text-slate-400 hover:text-slate-900"
+              onClick={() => setIsImportModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
             <div className="flex gap-3">
-              {importStep === "intro" && <Button disabled={!importFile || isValidating} onClick={validateImport} className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all">{isValidating ? <Loader2 className="animate-spin" /> : "Validar Arquivo"}</Button>}
-              {importStep === "preview" && <Button disabled={isSubmitting || !parsedRows.some(r => r.isValid)} onClick={executeImport} className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar e Importar"}</Button>}
+              {importStep === "intro" && (
+                <Button
+                  disabled={!importFile || isValidating}
+                  onClick={validateImport}
+                  className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  {isValidating ? <Loader2 className="animate-spin" /> : "Validar Arquivo"}
+                </Button>
+              )}
+              {importStep === "preview" && (
+                <Button
+                  disabled={isSubmitting || !parsedRows.some((r) => r.isValid)}
+                  onClick={executeImport}
+                  className="h-12 rounded-xl gradient-primary px-8 font-black uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar e Importar"}
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
@@ -523,10 +749,18 @@ export function StudentManagement() {
         <Table>
           <TableHeader className="bg-slate-50/50">
             <TableRow>
-              <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aluno</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Turma</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transporte</TableHead>
-              <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</TableHead>
+              <TableHead className="py-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Aluno
+              </TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Turma
+              </TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Transporte
+              </TableHead>
+              <TableHead className="text-right pr-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Ações
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -538,11 +772,16 @@ export function StudentManagement() {
                       <div className="h-10 w-10 rounded-full bg-primary/5 text-primary flex items-center justify-center border border-primary/10 shrink-0">
                         <User size={18} />
                       </div>
-                      <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">{s.nomeExibicao}</span>
+                      <span className="font-black text-base tracking-tight text-slate-900 truncate max-w-[150px] sm:max-w-none">
+                        {s.nomeExibicao}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest rounded-md">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest rounded-md"
+                    >
                       {s.turmaNome}
                     </Badge>
                   </TableCell>
@@ -553,27 +792,33 @@ export function StudentManagement() {
                         <span>{s.escolarNome}</span>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Individual</span>
+                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">
+                        Individual
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="text-right pr-8">
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 active:scale-90 transition-all"
                         onClick={() => {
                           setEditingStudent(s);
-                          setFormData({ nomeExibicao: s.nomeExibicao, turmaId: s.turmaId, escolarId: s.escolarId || "" });
+                          setFormData({
+                            nomeExibicao: s.nomeExibicao,
+                            turmaId: s.turmaId,
+                            escolarId: s.escolarId || "",
+                          });
                           setIsDialogOpen(true);
                         }}
                       >
                         <Pencil size={16} />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all"
                         disabled={isDeletingId === s.id}
                         onClick={() => handleDeleteClick(s.id, s.nomeExibicao)}
                       >
@@ -604,7 +849,7 @@ export function StudentManagement() {
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-xl font-bold">Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={executeDelete}
               className="rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white"
             >

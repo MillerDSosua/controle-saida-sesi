@@ -1,9 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
@@ -18,39 +17,67 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useFirebaseAuth();
-  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<"operator" | "viewer" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!auth || !db) return;
+  const loadUserRole = async (supabaseUser: User | null) => {
+    if (!supabaseUser) {
+      setRole(null);
+      return;
+    }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setRole(userData.role);
-          } else {
-            console.warn("AuthContext: User document not found for UID:", firebaseUser.uid);
-            setRole(null);
-          }
-        } catch (error) {
-          console.error("AuthContext: Error fetching user role:", error);
-          setRole(null);
-        }
-      } else {
+    try {
+      const { data: userRow, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", supabaseUser.id)
+        .single();
+
+      if (error || !userRow) {
+        console.warn("AuthContext: User document not found for UID:", supabaseUser.id);
         setRole(null);
+        return;
       }
+
+      const userData = userRow.data || {};
+      setRole(userData.role || null);
+    } catch (error) {
+      console.error("AuthContext: Error fetching user role:", error);
+      setRole(null);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user ?? null;
+
+      if (!mounted) return;
+
+      setUser(sessionUser);
+      await loadUserRole(sessionUser);
+      if (mounted) setLoading(false);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      await loadUserRole(sessionUser);
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [auth, db]);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, role, loading }}>
