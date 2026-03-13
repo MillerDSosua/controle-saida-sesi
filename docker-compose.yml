@@ -8,5 +8,5 @@ services:
       - "3000:3000"
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_SUPABASE_URL: https://nrxigckctqdpjhimkbyd.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_qU1cGNgq8f69Fs1ShZeKRA_51T5GPOk
+      NEXT_PUBLIC_SUPABASE_URL: "https://nrxigckctqdpjhimkbyd.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_qU1cGNgq8f69Fs1ShZeKRA_51T5GPOk"
