@@ -1,23 +1,24 @@
-# imagem base
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
-# diretório de trabalho dentro do container
 WORKDIR /app
 
-# copia apenas dependências primeiro
 COPY package*.json ./
-
-# instala dependências
 RUN npm install
 
-# copia resto do projeto
 COPY . .
-
-# build do next
 RUN npm run build
 
-# porta usada pelo Next.js
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
 EXPOSE 3000
 
-# comando que inicia o servidor
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
