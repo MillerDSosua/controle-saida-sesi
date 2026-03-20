@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -23,13 +23,12 @@ import {
   Loader2,
   LayoutGrid,
   List,
-  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
 export default function ViewerPage() {
-  const { user, role, loading } = useAuth();
+  const { user, roles, loading } = useAuth();
   const router = useRouter();
 
   const [selectedClass, setSelectedClass] = useState("all");
@@ -38,12 +37,40 @@ export default function ViewerPage() {
 
   const [calls, setCalls] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
-  const [callsLoading, setCallsLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [callsError, setCallsError] = useState<string | null>(null);
+
+  const mountedRef = useRef(false);
+  const reconnectingRef = useRef(false);
+  const callsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const classesChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const withTimeout = async <T,>(
+    operation: () => Promise<T>,
+    ms = 10000
+  ): Promise<T> => {
+    return await Promise.race([
+      operation(),
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error("Tempo limite excedido ao consultar o Supabase.")
+            ),
+          ms
+        )
+      ),
+    ]);
+  };
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   const mapSupabaseRow = (row: any) => ({
     id: row.id,
     ...(row.data || {}),
+    foi_chamado: row.foi_chamado ?? false,
   });
 
   useEffect(() => {
@@ -51,39 +78,63 @@ export default function ViewerPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && (!user || role !== "viewer")) {
-      router.push("/");
+    if (!loading && (!user || !roles.includes("viewer"))) {
+      router.push("/login");
     }
-  }, [user, role, loading, router]);
+  }, [user, roles, loading, router]);
 
-  const loadCalls = async () => {
-    setCallsLoading(true);
-    setCallsError(null);
+  const loadCalls = useCallback(
+    async (silent = false) => {
+      if (!silent) {
+        setCallsError(null);
+        if (initialLoading) {
+          setInitialLoading(true);
+        } else {
+          setIsRefreshing(true);
+        }
+      }
+
+      try {
+        const { data, error } = await withTimeout(() =>
+          Promise.resolve(
+            supabase.from("calls").select("*").order("id", { ascending: true })
+          )
+        );
+
+        if (error) throw error;
+
+        const mapped = (data || []).map(mapSupabaseRow);
+
+        if (mountedRef.current) {
+          setCalls(mapped);
+        }
+      } catch (error: any) {
+        console.error("Erro ao carregar calls:", error);
+
+        if (mountedRef.current) {
+          setCallsError(error.message || "Falha ao carregar chamadas.");
+        }
+      } finally {
+        if (mountedRef.current) {
+          setInitialLoading(false);
+          setIsRefreshing(false);
+        }
+      }
+    },
+    [initialLoading]
+  );
+
+  const loadClasses = useCallback(async (silent = false) => {
+    if (!silent && mountedRef.current) {
+      setIsRefreshing(true);
+    }
 
     try {
-      const { data, error } = await supabase
-        .from("calls")
-        .select("*")
-        .order("id", { ascending: true });
-
-      if (error) throw error;
-
-      const mapped = (data || []).map(mapSupabaseRow);
-      setCalls(mapped);
-    } catch (error: any) {
-      console.error("Erro ao carregar calls:", error);
-      setCallsError(error.message || "Falha ao carregar chamadas.");
-    } finally {
-      setCallsLoading(false);
-    }
-  };
-
-  const loadClasses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("classes")
-        .select("*")
-        .order("id", { ascending: true });
+      const { data, error } = await withTimeout(() =>
+        Promise.resolve(
+          supabase.from("classes").select("*").order("id", { ascending: true })
+        )
+      );
 
       if (error) throw error;
 
@@ -95,99 +146,181 @@ export default function ViewerPage() {
           })
         );
 
-      setClasses(mapped);
+      if (mountedRef.current) {
+        setClasses(mapped);
+      }
     } catch (error) {
       console.error("Erro ao carregar classes:", error);
+    } finally {
+      if (!silent && mountedRef.current) {
+        setIsRefreshing(false);
+      }
     }
-  };
+  }, []);
+
+  const teardownRealtime = useCallback(async () => {
+    if (callsChannelRef.current) {
+      await supabase.removeChannel(callsChannelRef.current);
+      callsChannelRef.current = null;
+    }
+
+    if (classesChannelRef.current) {
+      await supabase.removeChannel(classesChannelRef.current);
+      classesChannelRef.current = null;
+    }
+  }, []);
+
+  const setupRealtime = useCallback(async () => {
+    await teardownRealtime();
+
+    callsChannelRef.current = supabase
+      .channel(`viewer-calls-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "calls" },
+        async () => {
+          if (!mountedRef.current) return;
+          await loadCalls(true);
+        }
+      )
+      .subscribe((status) => {
+        console.log("[viewer-calls] status:", status);
+      });
+
+    classesChannelRef.current = supabase
+      .channel(`viewer-classes-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "classes" },
+        async () => {
+          if (!mountedRef.current) return;
+          await loadClasses(true);
+        }
+      )
+      .subscribe((status) => {
+        console.log("[viewer-classes] status:", status);
+      });
+  }, [loadCalls, loadClasses, teardownRealtime]);
+
+  const recoverViewerConnection = useCallback(async () => {
+    if (reconnectingRef.current) return;
+
+    reconnectingRef.current = true;
+
+    try {
+      if (mountedRef.current) {
+        setIsRefreshing(true);
+        setCallsError(null);
+      }
+
+      await teardownRealtime();
+      await sleep(300);
+      await Promise.all([loadCalls(true), loadClasses(true)]);
+      await sleep(250);
+      await setupRealtime();
+    } catch (error) {
+      console.error("[viewer] erro ao recuperar conexão:", error);
+    } finally {
+      reconnectingRef.current = false;
+      if (mountedRef.current) {
+        setInitialLoading(false);
+        setIsRefreshing(false);
+      }
+    }
+  }, [loadCalls, loadClasses, setupRealtime, teardownRealtime]);
+
+  const handleToggleCalled = useCallback(
+    async (callId: string, currentValue: boolean) => {
+      try {
+        setIsRefreshing(true);
+
+        const { error } = await withTimeout(
+          () =>
+            Promise.resolve(
+              supabase
+                .from("calls")
+                .update({ foi_chamado: !currentValue })
+                .eq("id", callId)
+            ),
+          12000
+        );
+
+        if (error) throw error;
+
+        await loadCalls(true);
+      } catch (err) {
+        console.error("Erro ao alternar status:", err);
+        await recoverViewerConnection();
+      } finally {
+        if (mountedRef.current) {
+          setIsRefreshing(false);
+        }
+      }
+    },
+    [loadCalls, recoverViewerConnection]
+  );
 
   useEffect(() => {
-    if (!user || role !== "viewer" || !diaRef) return;
+    if (!user || !roles.includes("viewer") || !diaRef) return;
 
-    let callsChannel: ReturnType<typeof supabase.channel> | null = null;
-    let classesChannel: ReturnType<typeof supabase.channel> | null = null;
-    let isMounted = true;
+    mountedRef.current = true;
 
-    const setupRealtime = async () => {
-      if (!isMounted) return;
-
-      await Promise.all([loadCalls(), loadClasses()]);
-
-      if (!isMounted) return;
-
-      callsChannel = supabase
-        .channel(`viewer-calls-${Date.now()}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "calls" },
-          async () => {
-            if (!isMounted) return;
-            await loadCalls();
-          }
-        )
-        .subscribe((status) => {
-          console.log("[viewer-calls] status:", status);
-          if (status === "SUBSCRIBED" && isMounted) {
-            loadCalls();
-          }
-        });
-
-      classesChannel = supabase
-        .channel(`viewer-classes-${Date.now()}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "classes" },
-          async () => {
-            if (!isMounted) return;
-            await loadClasses();
-          }
-        )
-        .subscribe((status) => {
-          console.log("[viewer-classes] status:", status);
-          if (status === "SUBSCRIBED" && isMounted) {
-            loadClasses();
-          }
-        });
-    };
-
-    const teardownRealtime = async () => {
-      if (callsChannel) {
-        await supabase.removeChannel(callsChannel);
-        callsChannel = null;
-      }
-
-      if (classesChannel) {
-        await supabase.removeChannel(classesChannel);
-        classesChannel = null;
-      }
+    const init = async () => {
+      await Promise.all([loadCalls(false), loadClasses(false)]);
+      await setupRealtime();
     };
 
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === "visible") {
-        console.log("[viewer] aba voltou a ficar visível, recriando canais...");
+      if (document.visibilityState === "hidden") {
         await teardownRealtime();
-        await setupRealtime();
+        return;
+      }
+
+      if (document.visibilityState === "visible") {
+        console.log("[viewer] aba voltou a ficar visível, recuperando...");
+        await recoverViewerConnection();
       }
     };
 
     const handleWindowFocus = async () => {
-      console.log("[viewer] janela voltou ao foco, recarregando...");
-      await loadCalls();
-      await loadClasses();
+      console.log("[viewer] janela voltou ao foco, recuperando...");
+      await recoverViewerConnection();
     };
 
-    setupRealtime();
+    const handleOnline = async () => {
+      console.log("[viewer] conexão restabelecida, recuperando...");
+      await recoverViewerConnection();
+    };
+
+    init();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("online", handleOnline);
+
+    const interval = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      await recoverViewerConnection();
+    }, 20000);
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
+      clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("online", handleOnline);
       teardownRealtime();
     };
-  }, [user, role, diaRef]);
+  }, [
+    user,
+    roles,
+    diaRef,
+    loadCalls,
+    loadClasses,
+    setupRealtime,
+    teardownRealtime,
+    recoverViewerConnection,
+  ]);
 
   const processedCalls = useMemo(() => {
     if (!calls || !diaRef) return [];
@@ -213,7 +346,7 @@ export default function ViewerPage() {
     });
   }, [calls, selectedClass, diaRef]);
 
-  if (loading || !user || role !== "viewer" || !diaRef) {
+  if (loading || !diaRef) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -221,9 +354,13 @@ export default function ViewerPage() {
     );
   }
 
+  if (!user || !roles.includes("viewer")) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F5F7] flex flex-col selection:bg-primary selection:text-white">
-      <DashboardHeader title="Quadro de Saída Inteligente" />
+      <DashboardHeader />
 
       <main className="flex-1 container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
         <div className="flex flex-col gap-8 mb-10">
@@ -298,6 +435,17 @@ export default function ViewerPage() {
           </div>
         </div>
 
+        {isRefreshing && !initialLoading && (
+          <div className="fixed top-24 right-6 z-50 rounded-xl bg-white/95 backdrop-blur-sm border border-slate-200 shadow-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.15em]">
+                Sincronizando quadro...
+              </span>
+            </div>
+          </div>
+        )}
+
         {callsError && (
           <div className="mb-8 p-5 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
             <AlertCircle size={20} />
@@ -307,7 +455,7 @@ export default function ViewerPage() {
           </div>
         )}
 
-        {callsLoading ? (
+        {initialLoading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
             <Loader2 className="h-10 w-10 animate-spin text-primary/40" />
             <p className="text-slate-400 font-medium text-sm">Atualizando quadro...</p>
@@ -315,140 +463,219 @@ export default function ViewerPage() {
         ) : processedCalls.length > 0 ? (
           viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {processedCalls.map((call) => (
-                <Card
-                  key={call.id}
-                  className={cn(
-                    "premium-card border-none overflow-hidden h-[300px] flex flex-col group animate-in fade-in zoom-in duration-500",
-                    call.tipo === "escolar"
-                      ? "bg-gradient-to-br from-orange-50 to-white"
-                      : "bg-white"
-                  )}
-                >
-                  <CardContent className="p-0 flex flex-col h-full">
-                    <div
-                      className={cn(
-                        "h-2 w-full",
-                        call.tipo === "escolar" ? "bg-orange-500" : "bg-primary"
-                      )}
-                    />
+              {processedCalls.map((call) => {
+                const isCalled = !!call.foi_chamado;
 
-                    <div className="p-6 flex flex-col items-center text-center justify-between flex-1">
-                      <div className="space-y-4 flex flex-col items-center w-full">
-                        <div
-                          className={cn(
-                            "h-16 w-16 rounded-2xl flex items-center justify-center shadow-sm relative transition-transform duration-300 group-hover:scale-110",
-                            call.tipo === "escolar"
-                              ? "bg-orange-100 text-orange-600"
-                              : "bg-primary/5 text-primary"
-                          )}
-                        >
-                          {call.tipo === "escolar" ? (
-                            <Bus size={32} />
-                          ) : (
-                            <UserIcon size={32} />
-                          )}
-                          <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-white" />
-                        </div>
+                return (
+                  <Card
+                    key={call.id}
+                    className={cn(
+                      "premium-card border-none overflow-hidden h-[360px] flex flex-col group animate-in fade-in zoom-in duration-500",
+                      call.tipo === "escolar"
+                        ? "bg-gradient-to-br from-orange-50 to-white"
+                        : "bg-white",
+                      isCalled && "ring-2 ring-green-500/30"
+                    )}
+                  >
+                    <CardContent className="p-0 flex flex-col h-full">
+                      <div
+                        className={cn(
+                          "h-2 w-full",
+                          isCalled
+                            ? "bg-green-500"
+                            : call.tipo === "escolar"
+                              ? "bg-orange-500"
+                              : "bg-primary"
+                        )}
+                      />
 
-                        <div className="space-y-1 w-full">
-                          <h3
+                      <div className="p-6 flex flex-col items-center text-center justify-between flex-1">
+                        <div className="space-y-4 flex flex-col items-center w-full">
+                          <div
                             className={cn(
-                              "text-lg font-black leading-tight tracking-tight line-clamp-2 min-h-[2.5rem] flex items-center justify-center",
-                              call.tipo === "escolar" ? "text-orange-900" : "text-slate-900"
+                              "h-16 w-16 rounded-2xl flex items-center justify-center shadow-sm relative transition-transform duration-300 group-hover:scale-110",
+                              isCalled
+                                ? "bg-green-100 text-green-600"
+                                : call.tipo === "escolar"
+                                  ? "bg-orange-100 text-orange-600"
+                                  : "bg-primary/5 text-primary"
                             )}
                           >
-                            {call.tipo === "escolar" ? call.escolarNome : call.nomeExibicao}
-                          </h3>
-                          <div className="flex items-center justify-center gap-2">
-                            <span
+                            {call.tipo === "escolar" ? (
+                              <Bus size={32} />
+                            ) : (
+                              <UserIcon size={32} />
+                            )}
+                            <div
                               className={cn(
-                                "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
-                                call.tipo === "escolar"
-                                  ? "bg-orange-200/50 text-orange-700"
-                                  : "bg-slate-100 text-slate-500"
+                                "absolute -top-1 -right-1 h-4 w-4 rounded-full border-2 border-white",
+                                isCalled ? "bg-green-500" : "bg-blue-500"
+                              )}
+                            />
+                          </div>
+
+                          <div className="space-y-1 w-full">
+                            <h3
+                              className={cn(
+                                "text-lg font-black leading-tight tracking-tight line-clamp-2 min-h-[2.5rem] flex items-center justify-center",
+                                isCalled
+                                  ? "text-green-800"
+                                  : call.tipo === "escolar"
+                                    ? "text-orange-900"
+                                    : "text-slate-900"
                               )}
                             >
-                              {call.tipo === "escolar" ? "Transporte Escolar" : call.turmaNome}
-                            </span>
+                              {call.tipo === "escolar" ? call.escolarNome : call.nomeExibicao}
+                            </h3>
+
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              <span
+                                className={cn(
+                                  "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                  call.tipo === "escolar"
+                                    ? "bg-orange-200/50 text-orange-700"
+                                    : "bg-slate-100 text-slate-500"
+                                )}
+                              >
+                                {call.tipo === "escolar" ? "Transporte Escolar" : call.turmaNome}
+                              </span>
+
+                              {isCalled && (
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-green-100 text-green-700">
+                                  Já chamado
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        <div className="w-full pt-4 border-t border-slate-50 space-y-4">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1">
+                              Horário de Saída
+                            </span>
+                            <div
+                              className={cn(
+                                "text-4xl font-black tabular-nums tracking-tighter",
+                                isCalled
+                                  ? "text-green-600"
+                                  : call.tipo === "escolar"
+                                    ? "text-orange-600"
+                                    : "text-primary"
+                              )}
+                            >
+                              {call.dataHoraChamado
+                                ? format(new Date(call.dataHoraChamado), "HH:mm")
+                                : "--:--"}
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={() => handleToggleCalled(call.id, isCalled)}
+                            className={cn(
+                              "w-full h-11 rounded-xl font-black tracking-tight transition-all",
+                              isCalled
+                                ? "bg-green-600 hover:bg-green-700 text-white"
+                                : "bg-primary hover:bg-primary/90 text-white"
+                            )}
+                          >
+                            {isCalled ? "Cancelar chamado" : "Chamado"}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-5xl mx-auto">
+              {processedCalls.map((call) => {
+                const isCalled = !!call.foi_chamado;
+
+                return (
+                  <div
+                    key={call.id}
+                    className={cn(
+                      "flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group animate-in slide-in-from-left-4 duration-300",
+                      call.tipo === "escolar" && "border-l-4 border-l-orange-500",
+                      isCalled && "border-green-300 bg-green-50/40"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={cn(
+                          "h-12 w-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+                          isCalled
+                            ? "bg-green-100 text-green-600"
+                            : call.tipo === "escolar"
+                              ? "bg-orange-100 text-orange-600"
+                              : "bg-primary/5 text-primary"
+                        )}
+                      >
+                        {call.tipo === "escolar" ? <Bus size={24} /> : <UserIcon size={24} />}
                       </div>
 
-                      <div className="w-full pt-4 border-t border-slate-50">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1">
-                          Horário de Saída
-                        </span>
-                        <div
+                      <div>
+                        <h4
                           className={cn(
-                            "text-4xl font-black tabular-nums tracking-tighter",
-                            call.tipo === "escolar" ? "text-orange-600" : "text-primary"
+                            "text-base font-black tracking-tight",
+                            isCalled ? "text-green-800" : "text-slate-900"
+                          )}
+                        >
+                          {call.tipo === "escolar" ? call.escolarNome : call.nomeExibicao}
+                        </h4>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            {call.tipo === "escolar" ? "Transporte Escolar" : call.turmaNome}
+                          </p>
+
+                          {isCalled && (
+                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-green-100 text-green-700">
+                              Já chamado
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+                          Saída
+                        </span>
+                        <span
+                          className={cn(
+                            "text-2xl font-black tabular-nums tracking-tight",
+                            isCalled
+                              ? "text-green-600"
+                              : call.tipo === "escolar"
+                                ? "text-orange-600"
+                                : "text-primary"
                           )}
                         >
                           {call.dataHoraChamado
                             ? format(new Date(call.dataHoraChamado), "HH:mm")
                             : "--:--"}
-                        </div>
+                        </span>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3 max-w-5xl mx-auto">
-              {processedCalls.map((call) => (
-                <div
-                  key={call.id}
-                  className={cn(
-                    "flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group animate-in slide-in-from-left-4 duration-300",
-                    call.tipo === "escolar" && "border-l-4 border-l-orange-500"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={cn(
-                        "h-12 w-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
-                        call.tipo === "escolar"
-                          ? "bg-orange-100 text-orange-600"
-                          : "bg-primary/5 text-primary"
-                      )}
-                    >
-                      {call.tipo === "escolar" ? <Bus size={24} /> : <UserIcon size={24} />}
-                    </div>
-                    <div>
-                      <h4 className="text-base font-black text-slate-900 tracking-tight">
-                        {call.tipo === "escolar" ? call.escolarNome : call.nomeExibicao}
-                      </h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {call.tipo === "escolar" ? "Transporte Escolar" : call.turmaNome}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
-                        Saída
-                      </span>
-                      <span
+                      <Button
+                        onClick={() => handleToggleCalled(call.id, isCalled)}
                         className={cn(
-                          "text-2xl font-black tabular-nums tracking-tight",
-                          call.tipo === "escolar" ? "text-orange-600" : "text-primary"
+                          "rounded-xl font-black",
+                          isCalled
+                            ? "bg-green-600 hover:bg-green-700 text-white"
+                            : "bg-primary hover:bg-primary/90 text-white"
                         )}
                       >
-                        {call.dataHoraChamado
-                          ? format(new Date(call.dataHoraChamado), "HH:mm")
-                          : "--:--"}
-                      </span>
+                        {isCalled ? "Cancelar Chamado" : "Chamado"}
+                      </Button>
                     </div>
-                    <ArrowRight
-                      className="text-slate-200 group-hover:text-primary transition-colors"
-                      size={20}
-                    />
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         ) : (

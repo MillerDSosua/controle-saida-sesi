@@ -74,7 +74,36 @@ export function CallManagement() {
   const mapSupabaseRow = (row: any) => ({
     id: row.id,
     ...(row.data || {}),
+    foi_chamado: row.foi_chamado ?? false,
   });
+
+  const withTimeout = async <T,>(
+    operation: () => Promise<T>,
+    ms = 8000
+  ): Promise<T> => {
+    return await Promise.race([
+      operation(),
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error("Tempo limite excedido ao consultar o Supabase.")
+            ),
+          ms
+        )
+      ),
+    ]);
+  };
+
+  const resetLoadingLocks = useCallback(() => {
+    loadingStudentsRef.current = false;
+    loadingClassesRef.current = false;
+    loadingCallsRef.current = false;
+
+    if (mountedRef.current) {
+      setIsSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     const savedMode = localStorage.getItem("operatorViewMode");
@@ -90,16 +119,17 @@ export function CallManagement() {
 
   const loadStudents = useCallback(
     async (silent = false) => {
-      if (loadingStudentsRef.current) return;
+      if (loadingStudentsRef.current && silent) return;
 
       loadingStudentsRef.current = true;
       if (!silent) setIsSyncing(true);
 
       try {
-        const { data, error } = await supabase
-          .from("students")
-          .select("*")
-          .order("id", { ascending: true });
+        const { data, error } = await withTimeout(() =>
+          Promise.resolve(
+            supabase.from("students").select("*").order("id", { ascending: true })
+          )
+        );
 
         if (error) throw error;
 
@@ -138,16 +168,17 @@ export function CallManagement() {
 
   const loadClasses = useCallback(
     async (silent = false) => {
-      if (loadingClassesRef.current) return;
+      if (loadingClassesRef.current && silent) return;
 
       loadingClassesRef.current = true;
       if (!silent) setIsSyncing(true);
 
       try {
-        const { data, error } = await supabase
-          .from("classes")
-          .select("*")
-          .order("id", { ascending: true });
+        const { data, error } = await withTimeout(() =>
+          Promise.resolve(
+            supabase.from("classes").select("*").order("id", { ascending: true })
+          )
+        );
 
         if (error) throw error;
 
@@ -182,16 +213,17 @@ export function CallManagement() {
 
   const loadCalls = useCallback(
     async (silent = false) => {
-      if (loadingCallsRef.current) return;
+      if (loadingCallsRef.current && silent) return;
 
       loadingCallsRef.current = true;
       if (!silent) setIsSyncing(true);
 
       try {
-        const { data, error } = await supabase
-          .from("calls")
-          .select("*")
-          .order("id", { ascending: true });
+        const { data, error } = await withTimeout(() =>
+          Promise.resolve(
+            supabase.from("calls").select("*").order("id", { ascending: true })
+          )
+        );
 
         if (error) throw error;
 
@@ -335,6 +367,26 @@ export function CallManagement() {
     updateRealtimeStatus,
   ]);
 
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const recoverOperatorConnection = useCallback(async () => {
+    resetLoadingLocks();
+    cleanupChannels();
+    updateRealtimeStatus("connecting");
+
+    await sleep(400);
+    await refreshAll(true);
+    await sleep(300);
+    setupChannels();
+  }, [
+    resetLoadingLocks,
+    cleanupChannels,
+    updateRealtimeStatus,
+    refreshAll,
+    setupChannels,
+  ]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -347,35 +399,37 @@ export function CallManagement() {
 
     init();
 
-    const handleVisibleAgain = async () => {
-      if (document.visibilityState === "visible") {
-        await refreshAll(true);
+    const handleVisibilityChange = async () => {
+  if (document.visibilityState === "hidden") {
+    cleanupChannels();
+    updateRealtimeStatus("closed");
+    return;
+  }
 
-        if (
-          realtimeStatusRef.current === "error" ||
-          realtimeStatusRef.current === "closed"
-        ) {
-          setupChannels();
-        }
-      }
-    };
+  if (document.visibilityState === "visible") {
+    await recoverOperatorConnection();
+  }
+};
 
-    const handleOnline = async () => {
-      await refreshAll(true);
-      setupChannels();
-    };
+const handleOnline = async () => {
+  await recoverOperatorConnection();
+};
 
-    document.addEventListener("visibilitychange", handleVisibleAgain);
-    window.addEventListener("focus", handleVisibleAgain);
-    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+window.addEventListener("focus", handleVisibilityChange);
+window.addEventListener("online", handleOnline);
 
     const interval = setInterval(async () => {
+      resetLoadingLocks();
+
       await loadCalls(true);
 
       if (
         realtimeStatusRef.current === "error" ||
-        realtimeStatusRef.current === "closed"
+        realtimeStatusRef.current === "closed" ||
+        document.visibilityState === "visible"
       ) {
+        cleanupChannels();
         setupChannels();
       }
     }, 20000);
@@ -383,105 +437,141 @@ export function CallManagement() {
     return () => {
       mountedRef.current = false;
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibleAgain);
-      window.removeEventListener("focus", handleVisibleAgain);
-      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+window.removeEventListener("focus", handleVisibilityChange);
+window.removeEventListener("online", handleOnline);
       cleanupChannels();
     };
-  }, [user, refreshAll, setupChannels, cleanupChannels, loadCalls]);
+  }, [
+    user,
+    refreshAll,
+    setupChannels,
+    cleanupChannels,
+    loadCalls,
+    resetLoadingLocks,
+    updateRealtimeStatus,
+    recoverOperatorConnection,
+  ]);
 
   const handleToggleCall = async (student: any) => {
-    if (processingIds.has(student.id)) return;
+  if (processingIds.has(student.id)) return;
 
-    setProcessingIds((prev) => new Set(prev).add(student.id));
+  setProcessingIds((prev) => new Set(prev).add(student.id));
+
+  try {
+    await recoverOperatorConnection();
 
     const existingCall = calls[student.id];
     const isActive = existingCall && existingCall.status === "Chamado";
+    const { foi_chamado: _ignorarFoiChamado, ...existingCallData } =
+      existingCall || {};
 
-    try {
-      if (isActive) {
-        const { error } = await supabase
-          .from("calls")
-          .update({
-            data: {
-              ...existingCall,
-              status: "Cancelado",
-              updatedAt: nowIso(),
-            },
-          })
-          .eq("id", existingCall.id);
+    if (isActive) {
+      const { error } = await withTimeout(
+        () =>
+          Promise.resolve(
+            supabase
+              .from("calls")
+              .update({
+                foi_chamado: false,
+                data: {
+                  ...existingCallData,
+                  status: "Cancelado",
+                  updatedAt: nowIso(),
+                },
+              })
+              .eq("id", existingCall.id)
+          ),
+        12000
+      );
+
+      if (error) throw error;
+
+      toast({
+        title: "Cancelado",
+        description: `${student.nomeExibicao} removido.`,
+      });
+    } else {
+      const payload = {
+        tipo: "aluno",
+        studentId: student.id,
+        nomeExibicao: student.nomeExibicao,
+        turmaId: student.turmaId,
+        turmaNome: student.turmaNome,
+        status: "Chamado",
+        dataHoraChamado: nowIso(),
+        diaRef,
+        chamadoPorUid: user?.id || null,
+        chamadoPorEmail: user?.email || null,
+        updatedAt: nowIso(),
+      };
+
+      if (existingCall) {
+        const { error } = await withTimeout(
+          () =>
+            Promise.resolve(
+              supabase
+                .from("calls")
+                .update({
+                  foi_chamado: false,
+                  data: {
+                    ...existingCallData,
+                    ...payload,
+                  },
+                })
+                .eq("id", existingCall.id)
+            ),
+          12000
+        );
 
         if (error) throw error;
-
-        toast({
-          title: "Cancelado",
-          description: `${student.nomeExibicao} removido.`,
-        });
       } else {
-        const payload = {
-          tipo: "aluno",
-          studentId: student.id,
-          nomeExibicao: student.nomeExibicao,
-          turmaId: student.turmaId,
-          turmaNome: student.turmaNome,
-          status: "Chamado",
-          dataHoraChamado: nowIso(),
-          diaRef,
-          chamadoPorUid: user?.id || null,
-          chamadoPorEmail: user?.email || null,
-          updatedAt: nowIso(),
-        };
+        const newId = generateId();
 
-        if (existingCall) {
-          const { error } = await supabase
-            .from("calls")
-            .update({
-              data: {
-                ...existingCall,
-                ...payload,
-              },
-            })
-            .eq("id", existingCall.id);
+        const { error } = await withTimeout(
+          () =>
+            Promise.resolve(
+              supabase.from("calls").insert([
+                {
+                  id: newId,
+                  foi_chamado: false,
+                  data: {
+                    id: newId,
+                    ...payload,
+                    createdAt: nowIso(),
+                  },
+                },
+              ])
+            ),
+          12000
+        );
 
-          if (error) throw error;
-        } else {
-          const newId = generateId();
-
-          const { error } = await supabase.from("calls").insert([
-            {
-              id: newId,
-              data: {
-                id: newId,
-                ...payload,
-                createdAt: nowIso(),
-              },
-            },
-          ]);
-
-          if (error) throw error;
-        }
-
-        toast({
-          title: "Chamado",
-          description: `${student.nomeExibicao} enviado ao quadro.`,
-        });
+        if (error) throw error;
       }
 
-      await loadCalls(true);
-    } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Falha ao processar chamada.",
-      });
-    } finally {
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(student.id);
-        return next;
+        title: "Chamado",
+        description: `${student.nomeExibicao} enviado ao quadro.`,
       });
     }
-  };
+
+    await loadCalls(true);
+  } catch (error: any) {
+    await recoverOperatorConnection();
+
+    toast({
+      variant: "destructive",
+      title: "Erro",
+      description: error.message || "Falha ao processar chamada.",
+    });
+  } finally {
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(student.id);
+      return next;
+    });
+  }
+};
 
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
@@ -593,7 +683,8 @@ export function CallManagement() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredStudents.map((s) => {
             const currentCall = calls[s.id];
-            const isCalled = currentCall && currentCall.status === "Chamado";
+            const isActive = currentCall && currentCall.status === "Chamado";
+            const isConfirmedCalled = !!currentCall?.foi_chamado;
             const isProcessing = processingIds.has(s.id);
 
             return (
@@ -601,9 +692,11 @@ export function CallManagement() {
                 key={s.id}
                 className={cn(
                   "rounded-[2rem] border border-slate-100 bg-white shadow-sm transition-all duration-300 h-[320px] flex flex-col justify-between overflow-hidden",
-                  isCalled
-                    ? "border-green-500/30 bg-green-50/10"
-                    : "hover:bg-slate-50/30 hover:shadow-md"
+                  isConfirmedCalled
+                    ? "border-green-500/40 bg-green-50/30 ring-2 ring-green-500/10"
+                    : isActive
+                      ? "border-green-500/30 bg-green-50/10"
+                      : "hover:bg-slate-50/30 hover:shadow-md"
                 )}
               >
                 <CardContent className="p-8 flex flex-col h-full justify-between items-center text-center">
@@ -611,9 +704,11 @@ export function CallManagement() {
                     <div
                       className={cn(
                         "h-20 w-20 rounded-full mx-auto flex items-center justify-center border transition-all duration-300",
-                        isCalled
+                        isConfirmedCalled
                           ? "bg-green-100 text-green-600 border-green-200"
-                          : "bg-slate-50 text-slate-300 border-slate-100"
+                          : isActive
+                            ? "bg-green-100 text-green-600 border-green-200"
+                            : "bg-slate-50 text-slate-300 border-slate-100"
                       )}
                     >
                       {isProcessing ? (
@@ -628,7 +723,7 @@ export function CallManagement() {
                         {s.nomeExibicao}
                       </h3>
 
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center gap-2 flex-wrap">
                         <Badge
                           variant="secondary"
                           className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none"
@@ -636,9 +731,15 @@ export function CallManagement() {
                           {s.turmaNome}
                         </Badge>
 
-                        {isCalled && (
-                          <Badge className="bg-green-500 text-white text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none shadow-sm">
-                            Chamado
+                        {isActive && !isConfirmedCalled && (
+                          <Badge className="bg-yellow-400 text-yellow-900 text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none shadow-sm">
+                            No quadro
+                          </Badge>
+                        )}
+
+                        {isConfirmedCalled && (
+                          <Badge className="bg-green-600 text-white text-[10px] font-black uppercase tracking-[0.1em] py-0.5 px-2.5 rounded-md border-none shadow-sm">
+                            Já chamado
                           </Badge>
                         )}
                       </div>
@@ -646,17 +747,17 @@ export function CallManagement() {
                   </div>
 
                   <Button
-                    variant={isCalled ? "destructive" : "default"}
+                    variant={isActive ? "destructive" : "default"}
                     className={cn(
                       "w-full h-11 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95",
-                      !isCalled ? "gradient-primary" : "bg-red-500"
+                      !isActive ? "gradient-primary" : "bg-red-500"
                     )}
                     disabled={isProcessing}
                     onClick={() => handleToggleCall(s)}
                   >
                     {isProcessing ? (
                       <Loader2 className="animate-spin" />
-                    ) : isCalled ? (
+                    ) : isActive ? (
                       "Cancelar"
                     ) : (
                       "Chamar Saída"
@@ -671,7 +772,8 @@ export function CallManagement() {
         <div className="space-y-3">
           {filteredStudents.map((s) => {
             const currentCall = calls[s.id];
-            const isCalled = currentCall && currentCall.status === "Chamado";
+            const isActive = currentCall && currentCall.status === "Chamado";
+            const isConfirmedCalled = !!currentCall?.foi_chamado;
             const isProcessing = processingIds.has(s.id);
 
             return (
@@ -679,16 +781,22 @@ export function CallManagement() {
                 key={s.id}
                 className={cn(
                   "flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all h-24 sm:h-28 hover:bg-slate-50/50",
-                  isCalled && "border-l-4 border-l-green-500 bg-green-50/10"
+                  isConfirmedCalled
+                    ? "border-l-4 border-l-green-600 bg-green-50/30"
+                    : isActive
+                      ? "border-l-4 border-l-green-500 bg-green-50/10"
+                      : ""
                 )}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div
                     className={cn(
                       "h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center border shrink-0 transition-all duration-300",
-                      isCalled
+                      isConfirmedCalled
                         ? "bg-green-100 text-green-600 border-green-200"
-                        : "bg-slate-50 text-slate-300 border-slate-100"
+                        : isActive
+                          ? "bg-green-100 text-green-600 border-green-200"
+                          : "bg-slate-50 text-slate-300 border-slate-100"
                     )}
                   >
                     {isProcessing ? (
@@ -702,29 +810,42 @@ export function CallManagement() {
                     <h4 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate pr-4">
                       {s.nomeExibicao}
                     </h4>
-                    <div className="mt-1">
+
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
                       <Badge
                         variant="secondary"
                         className="bg-blue-50 text-blue-600 border-none px-2 py-0.5 font-black text-[11px] uppercase tracking-widest rounded-md"
                       >
                         {s.turmaNome}
                       </Badge>
+
+                      {isActive && !isConfirmedCalled && (
+                        <Badge className="bg-yellow-400 text-yellow-900 border-none px-2 py-0.5 font-black text-[10px] uppercase tracking-widest rounded-md">
+                          No quadro
+                        </Badge>
+                      )}
+
+                      {isConfirmedCalled && (
+                        <Badge className="bg-green-600 text-white border-none px-2 py-0.5 font-black text-[10px] uppercase tracking-widest rounded-md">
+                          Já chamado
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <Button
-                  variant={isCalled ? "destructive" : "default"}
+                  variant={isActive ? "destructive" : "default"}
                   className={cn(
                     "h-10 w-[90px] sm:w-[120px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] shadow-sm transition-all active:scale-95",
-                    !isCalled ? "gradient-primary text-white" : "bg-red-500 text-white"
+                    !isActive ? "gradient-primary text-white" : "bg-red-500 text-white"
                   )}
                   disabled={isProcessing}
                   onClick={() => handleToggleCall(s)}
                 >
                   {isProcessing ? (
                     <Loader2 className="animate-spin" />
-                  ) : isCalled ? (
+                  ) : isActive ? (
                     "Cancelar"
                   ) : (
                     "Chamar"

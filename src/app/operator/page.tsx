@@ -13,63 +13,74 @@ import { EscolarManagement } from "@/components/operator/escolar-management";
 import { Users, GraduationCap, PhoneOutgoing, History, Bus } from "lucide-react";
 
 export default function OperatorPage() {
-  const { user, role, loading } = useAuth();
+  const { user, roles, loading } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("calls");
 
   useEffect(() => {
-    if (!loading && (!user || role !== "operator")) {
-      router.push("/");
+    if (!loading && !roles.includes("operator")) {
+      router.push("/login");
     }
-  }, [user, role, loading, router]);
+  }, [loading, roles, router]);
 
-  if (loading || !user || role !== "operator") {
+  if (loading) {
+    return null;
+  }
+
+  if (!user || !roles.includes("operator")) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <DashboardHeader title="Controle de Saída SESI" />
+      <DashboardHeader />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
-        <Tabs defaultValue="calls" className="space-y-6 sm:space-y-8" onValueChange={setActiveTab}>
-          {/* Navegação por Abas Refinada para Mobile (Largura total, ícones maiores e centralizados) */}
+        <Tabs
+          defaultValue="calls"
+          className="space-y-6 sm:space-y-8"
+          onValueChange={setActiveTab}
+        >
           <div className="flex items-center justify-center overflow-x-auto pb-1 scrollbar-hide">
             <TabsList className="flex w-[92%] sm:w-auto apple-blur p-1 h-14 rounded-2xl border border-slate-200 shadow-sm bg-white/50 backdrop-blur-md">
-              <TabsTrigger 
-                value="calls" 
+              <TabsTrigger
+                value="calls"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Chamadas"
               >
                 <PhoneOutgoing size={22} className="shrink-0" />
                 <span className="hidden sm:inline ml-1">Chamadas</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="escolares" 
+
+              <TabsTrigger
+                value="escolares"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Escolares"
               >
                 <Bus size={22} className="shrink-0" />
                 <span className="hidden sm:inline ml-1">Escolares</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="students" 
+
+              <TabsTrigger
+                value="students"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Alunos"
               >
                 <GraduationCap size={22} className="shrink-0" />
                 <span className="hidden sm:inline ml-1">Alunos</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="classes" 
+
+              <TabsTrigger
+                value="classes"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Turmas"
               >
                 <Users size={22} className="shrink-0" />
                 <span className="hidden sm:inline ml-1">Turmas</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="history" 
+
+              <TabsTrigger
+                value="history"
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-0 sm:px-6 rounded-xl font-bold transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md"
                 title="Histórico"
               >
@@ -83,15 +94,19 @@ export default function OperatorPage() {
             <TabsContent value="calls" className="mt-0 outline-none">
               <CallManagement />
             </TabsContent>
+
             <TabsContent value="escolares" className="mt-0 outline-none">
               <EscolarManagement />
             </TabsContent>
+
             <TabsContent value="students" className="mt-0 outline-none">
               <StudentManagement />
             </TabsContent>
+
             <TabsContent value="classes" className="mt-0 outline-none">
               <ClassManagement />
             </TabsContent>
+
             <TabsContent value="history" className="mt-0 outline-none">
               <HistoryManagement />
             </TabsContent>

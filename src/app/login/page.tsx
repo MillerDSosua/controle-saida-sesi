@@ -17,8 +17,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { GraduationCap, ShieldCheck } from "lucide-react";
 
+type AppRole = "operator" | "viewer";
+
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -29,11 +31,37 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log("[Login] Tentando autenticação Supabase para:", email);
+      const normalizedLogin = login.trim().toLowerCase();
+      let emailToUse = normalizedLogin;
+
+      console.log("[Login] Entrada recebida:", normalizedLogin);
+
+      const isEmail = normalizedLogin.includes("@");
+
+      if (!isEmail) {
+        console.log("[Login] Detectado username. Buscando e-mail vinculado via RPC...");
+
+        const { data: mappedEmail, error: rpcError } = await supabase
+          .rpc("get_email_by_username", { p_username: normalizedLogin });
+
+        if (rpcError) {
+          console.error("[Login] Erro RPC ao buscar username:", rpcError);
+          throw new Error("USERNAME_LOOKUP_FAILED");
+        }
+
+        if (!mappedEmail) {
+          console.error("[Login] Username não encontrado:", normalizedLogin);
+          throw new Error("USERNAME_NOT_FOUND");
+        }
+
+        emailToUse = mappedEmail;
+      }
+
+      console.log("[Login] Tentando autenticação Supabase para:", emailToUse);
 
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
-          email,
+          email: emailToUse,
           password,
         });
 
@@ -59,19 +87,41 @@ export default function LoginPage() {
       }
 
       const userData = userRow.data || {};
-      console.log("[Login] Perfil carregado. Role:", userData.role);
+
+      const defaultRole = (userData.role as AppRole | undefined) ?? null;
+      const availableRoles: AppRole[] = Array.isArray(userData.roles)
+        ? userData.roles.filter(
+            (item: unknown): item is AppRole =>
+              item === "operator" || item === "viewer"
+          )
+        : defaultRole
+        ? [defaultRole]
+        : [];
+
+      console.log("[Login] Perfil carregado. Role padrão:", defaultRole);
+      console.log("[Login] Perfis disponíveis:", availableRoles);
+
+      if (!defaultRole) {
+        throw new Error("INVALID_ROLE");
+      }
+
+      if (!availableRoles.includes(defaultRole)) {
+        availableRoles.push(defaultRole);
+      }
+
+      localStorage.setItem("activeRole", defaultRole);
 
       toast({
         title: "Acesso Autorizado",
         description: "Bem-vindo ao sistema SESI.",
       });
 
-      if (userData.role === "operator") {
+      if (defaultRole === "operator") {
         router.push("/operator");
-      } else if (userData.role === "viewer") {
+      } else if (defaultRole === "viewer") {
         router.push("/viewer");
       } else {
-        console.error("[Login] Role inválida detectada:", userData.role);
+        console.error("[Login] Role inválida detectada:", defaultRole);
         throw new Error("INVALID_ROLE");
       }
     } catch (error: any) {
@@ -81,10 +131,15 @@ export default function LoginPage() {
       let description = "Verifique suas credenciais.";
 
       if (error?.message?.includes("Invalid login credentials")) {
-        description = "E-mail ou senha inválidos.";
+        description = "Usuário/e-mail ou senha inválidos.";
+      } else if (error?.message === "USERNAME_LOOKUP_FAILED") {
+        title = "Erro ao consultar usuário";
+        description = "Não foi possível localizar o usuário pelo username.";
+      } else if (error?.message === "USERNAME_NOT_FOUND") {
+        description = "Usuário não encontrado.";
       } else if (error?.message === "ROLE_NOT_FOUND") {
         title = "Conta não configurada";
-        description = "Sua conta não possui permissões no Supabase.";
+        description = "Sua conta não possui permissões no sistema.";
       } else if (error?.message === "INVALID_ROLE") {
         title = "Acesso Negado";
         description = "Sua conta não possui um nível de acesso válido.";
@@ -110,7 +165,9 @@ export default function LoginPage() {
             <GraduationCap size={48} />
           </div>
           <div className="space-y-1">
-            <h1 className="text-5xl font-black tracking-tighter text-primary">ESCOLA SESI BETIM</h1>
+            <h1 className="text-5xl font-black tracking-tighter text-primary">
+              ESCOLA SESI BETIM
+            </h1>
             <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-xs">
               Saída Inteligente - Miller
             </p>
@@ -131,19 +188,20 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
                 <Label
-                  htmlFor="email"
+                  htmlFor="login"
                   className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1"
                 >
-                  E-mail Corporativo
+                  Usuário ou E-mail
                 </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="exemplo@fiemg.com.br"
+                  id="login"
+                  type="text"
+                  placeholder="Digite seu usuário ou e-mail"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
                   className="h-14 bg-secondary/50 border-none rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/20 transition-all text-lg"
+                  autoComplete="username"
                 />
               </div>
 
@@ -162,6 +220,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-14 bg-secondary/50 border-none rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/20 transition-all text-lg"
+                  autoComplete="current-password"
                 />
               </div>
 
